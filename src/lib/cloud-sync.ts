@@ -16,6 +16,7 @@ import {
 } from "./cloud-write";
 
 import {
+  clearUnsyncedLocalChanges,
   getPendingSyncOperations,
   hasUnsyncedLocalChanges,
   removePendingSyncOperation,
@@ -50,12 +51,11 @@ export interface CloudSyncResult {
 
 export interface PendingSyncResult {
   synced: number;
-  remapped: Record<string, number>;
+  remaining: number;
 }
 
 let pendingSyncInFlight:
-  Promise<PendingSyncResult> | null =
-  null;
+  Promise<PendingSyncResult> | null = null;
 
 function requireSupabase() {
   if (!supabase) {
@@ -68,18 +68,12 @@ function requireSupabase() {
 }
 
 async function requireSession() {
-  const client =
-    requireSupabase();
+  const client = requireSupabase();
 
-  const {
-    data,
-    error,
-  } =
+  const { data, error } =
     await client.auth.getSession();
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 
   if (!data.session) {
     throw new Error(
@@ -90,7 +84,13 @@ async function requireSession() {
 
 function isOnline() {
   return (
-    typeof navigator ===
-      "undefined" ||
+    typeof navigator === "undefined" ||
     navigator.onLine
   );
+}
+
+async function remapPendingLocalId(
+  entity: SyncEntity,
+  oldId: number,
+  newId: number,
+) {
