@@ -7,7 +7,9 @@ import {
 
 import {
   cloudDeleteControl,
+  cloudDeleteWeightRecord,
   cloudUpsertControl,
+  cloudUpsertWeightRecord,
 } from "./cloud-write";
 
 import type {
@@ -70,10 +72,6 @@ export class AnthroDB extends Dexie {
         "++id, date, round, dayType, context",
     });
 
-    /*
-     * Versión 5:
-     * antropometrías completas / Kerr / Antropogims.
-     */
     this.version(5).stores({
       players: "++id, name, active",
       controls:
@@ -92,9 +90,6 @@ export class AnthroDB extends Dexie {
 
 let _db: AnthroDB | null = null;
 
-/**
- * Dexie solo existe en el navegador.
- */
 export function db(): AnthroDB {
   if (typeof window === "undefined") {
     throw new Error(
@@ -164,10 +159,6 @@ export async function ensureSeed() {
   const count =
     await d.players.count();
 
-  /*
-   * Si ya hay jugadoras reales,
-   * jamás agregamos datos de ejemplo.
-   */
   if (count > 0) return;
 
   const players: Player[] = [
@@ -357,15 +348,10 @@ export async function upsertControl(
 ) {
   const d = db();
 
-  /*
-   * EDITAR CONTROL EXISTENTE
-   */
   if (c.id) {
-    const updated:
-      Control = {
+    const updated: Control = {
       ...c,
-      updatedAt:
-        nowISO(),
+      updatedAt: nowISO(),
     };
 
     await d.controls.update(
@@ -373,11 +359,6 @@ export async function upsertControl(
       updated,
     );
 
-    /*
-     * Una vez guardado localmente,
-     * enviamos exactamente el mismo
-     * registro a Supabase.
-     */
     await cloudUpsertControl(
       updated,
     );
@@ -385,36 +366,20 @@ export async function upsertControl(
     return c.id;
   }
 
-  /*
-   * CREAR CONTROL NUEVO
-   */
-  const created:
-    Control = {
+  const created: Control = {
     ...c,
-    createdAt:
-      nowISO(),
-    updatedAt:
-      nowISO(),
+    createdAt: nowISO(),
+    updatedAt: nowISO(),
   };
 
-  /*
-   * Primero IndexedDB genera el ID.
-   */
   const id =
     await d.controls.add(
       created,
     );
 
-  /*
-   * Después armamos el registro final
-   * incluyendo ese ID para que Supabase
-   * use exactamente el mismo identificador.
-   */
-  const finalRecord:
-    Control = {
+  const finalRecord: Control = {
     ...created,
-    id:
-      Number(id),
+    id: Number(id),
   };
 
   await cloudUpsertControl(
@@ -433,23 +398,58 @@ export async function upsertWeightRecord(
 ) {
   const d = db();
 
+  /*
+   * EDITAR PESAJES EXISTENTES
+   */
   if (record.id) {
+    const updated:
+      WeightRecord = {
+      ...record,
+      updatedAt:
+        nowISO(),
+    };
+
     await d.weightRecords.update(
       record.id,
-      {
-        ...record,
-        updatedAt: nowISO(),
-      },
+      updated,
+    );
+
+    await cloudUpsertWeightRecord(
+      updated,
     );
 
     return record.id;
   }
 
-  return await d.weightRecords.add({
+  /*
+   * CREAR PESAJES NUEVOS
+   */
+  const created:
+    WeightRecord = {
     ...record,
-    createdAt: nowISO(),
-    updatedAt: nowISO(),
-  });
+    createdAt:
+      nowISO(),
+    updatedAt:
+      nowISO(),
+  };
+
+  const id =
+    await d.weightRecords.add(
+      created,
+    );
+
+  const finalRecord:
+    WeightRecord = {
+    ...created,
+    id:
+      Number(id),
+  };
+
+  await cloudUpsertWeightRecord(
+    finalRecord,
+  );
+
+  return Number(id);
 }
 
 export async function deleteWeightRecord(
@@ -458,6 +458,10 @@ export async function deleteWeightRecord(
   await db()
     .weightRecords
     .delete(id);
+
+  await cloudDeleteWeightRecord(
+    id,
+  );
 }
 
 /* ============================================================
@@ -583,27 +587,6 @@ export async function deleteHydrationTest(
    5 COMPONENTES / KERR / ANTROPOGIMS
 ============================================================ */
 
-/*
- * Esta función es el corazón de la conexión
- * entre:
- *
- * ANTROPOMETRÍA COMPLETA
- *
- * y
- *
- * SEGUIMIENTO HABITUAL.
- *
- * Al guardar una evaluación:
- *
- * 1. calcula Kerr;
- * 2. busca si ya existe un control habitual
- *    para esa jugadora y esa fecha;
- * 3. lo actualiza o lo crea;
- * 4. guarda la antropometría completa;
- * 5. vincula ambos registros.
- *
- * Todo ocurre dentro de una única transacción.
- */
 export async function upsertFullAnthropometry(
   anthropometry: FullAnthropometry,
 ) {
@@ -617,39 +600,20 @@ export async function upsertFullAnthropometry(
       const now =
         nowISO();
 
-      /*
-       * Calculamos SIEMPRE nuevamente.
-       *
-       * No confiamos en resultados viejos
-       * que puedan venir de un archivo.
-       */
       const results =
         calculateFiveComponents(
           anthropometry,
         );
 
-      /*
-       * Extraemos únicamente los campos
-       * que comparte con el seguimiento
-       * habitual.
-       */
       const controlData =
         controlDataFromFullAnthropometry(
           anthropometry,
         );
 
-      /* ======================================================
-         1. BUSCAR CONTROL HABITUAL
-      ====================================================== */
-
       let existingControl:
         | Control
         | undefined;
 
-      /*
-       * Primero intentamos usar el vínculo
-       * previamente guardado.
-       */
       if (
         anthropometry.linkedControlId !=
         null
@@ -659,11 +623,6 @@ export async function upsertFullAnthropometry(
             anthropometry.linkedControlId,
           );
 
-        /*
-         * Verificamos además que realmente
-         * corresponda a la misma jugadora
-         * y fecha.
-         */
         if (
           linked &&
           linked.playerId ===
@@ -676,10 +635,6 @@ export async function upsertFullAnthropometry(
         }
       }
 
-      /*
-       * Si no había vínculo, buscamos
-       * jugadora + fecha.
-       */
       if (!existingControl) {
         existingControl =
           await d.controls
@@ -693,25 +648,12 @@ export async function upsertFullAnthropometry(
             .first();
       }
 
-      /* ======================================================
-         2. CREAR O ACTUALIZAR CONTROL
-      ====================================================== */
-
       let controlId: number;
 
       if (
         existingControl?.id !=
         null
       ) {
-        /*
-         * MUY IMPORTANTE:
-         *
-         * conservamos las notas que ya
-         * pudiera tener el control.
-         *
-         * Actualizamos solamente las
-         * mediciones compartidas.
-         */
         await d.controls.update(
           existingControl.id,
           {
@@ -723,10 +665,6 @@ export async function upsertFullAnthropometry(
         controlId =
           existingControl.id;
       } else {
-        /*
-         * No existe un control habitual
-         * ese día: lo creamos.
-         */
         const newControl:
           Control = {
           playerId:
@@ -752,10 +690,6 @@ export async function upsertFullAnthropometry(
           Number(addedId);
       }
 
-      /* ======================================================
-         3. EVITAR DUPLICAR ANTROPOMETRÍAS
-      ====================================================== */
-
       let existingAnthropometry:
         | FullAnthropometry
         | undefined;
@@ -770,14 +704,6 @@ export async function upsertFullAnthropometry(
           );
       }
 
-      /*
-       * Si por ejemplo importamos dos veces
-       * el mismo Excel sin ID, usamos:
-       *
-       * jugadora + fecha
-       *
-       * para encontrar el registro anterior.
-       */
       if (
         !existingAnthropometry
       ) {
@@ -793,10 +719,6 @@ export async function upsertFullAnthropometry(
             .first();
       }
 
-      /* ======================================================
-         4. CONSTRUIR REGISTRO FINAL
-      ====================================================== */
-
       const finalRecord:
         FullAnthropometry = {
         ...anthropometry,
@@ -805,14 +727,8 @@ export async function upsertFullAnthropometry(
           existingAnthropometry?.id ??
           anthropometry.id,
 
-        /*
-         * Siempre usamos nuestros cálculos.
-         */
         results,
 
-        /*
-         * Vinculación con seguimiento.
-         */
         linkedControlId:
           controlId,
 
@@ -825,10 +741,6 @@ export async function upsertFullAnthropometry(
         updatedAt:
           now,
       };
-
-      /* ======================================================
-         5. GUARDAR ANTROPOMETRÍA
-      ====================================================== */
 
       if (
         existingAnthropometry?.id !=
@@ -854,16 +766,6 @@ export async function upsertFullAnthropometry(
   );
 }
 
-/*
- * Eliminar una antropometría completa NO elimina
- * automáticamente el control habitual.
- *
- * Esto es intencional:
- *
- * si borramos por error un informe completo,
- * no queremos borrar también el historial de
- * peso, pliegues y perímetros.
- */
 export async function deleteFullAnthropometry(
   id: number,
 ) {
@@ -872,10 +774,6 @@ export async function deleteFullAnthropometry(
     .delete(id);
 }
 
-/*
- * Busca la evaluación completa de una
- * jugadora en una fecha.
- */
 export async function findFullAnthropometryByDate(
   playerId: number,
   date: string,
