@@ -7,8 +7,15 @@ import {
 
 import {
   cloudDeleteControl,
+  cloudDeleteFullAnthropometry,
+  cloudDeleteHydrationTest,
+  cloudDeletePlayer,
   cloudDeleteWeightRecord,
   cloudUpsertControl,
+  cloudUpsertFullAnthropometry,
+  cloudUpsertHydrationTest,
+  cloudUpsertObjectivePeriod,
+  cloudUpsertPlayer,
   cloudUpsertWeightRecord,
 } from "./cloud-write";
 
@@ -20,6 +27,12 @@ import type {
   Player,
   WeightRecord,
 } from "./types";
+
+type PlayerProfile = Player & {
+  phone?: string | null;
+  email?: string | null;
+  generalNotes?: string | null;
+};
 
 export class AnthroDB extends Dexie {
   players!: Table<Player, number>;
@@ -90,6 +103,10 @@ export class AnthroDB extends Dexie {
 
 let _db: AnthroDB | null = null;
 
+/* ============================================================
+   BASE LOCAL
+============================================================ */
+
 export function db(): AnthroDB {
   if (typeof window === "undefined") {
     throw new Error(
@@ -159,7 +176,13 @@ export async function ensureSeed() {
   const count =
     await d.players.count();
 
-  if (count > 0) return;
+  /*
+   * Si ya existen jugadoras reales,
+   * nunca agregamos datos de ejemplo.
+   */
+  if (count > 0) {
+    return;
+  }
 
   const players: Player[] = [
     {
@@ -338,9 +361,13 @@ export async function ensureSeed() {
 export async function deleteControl(
   id: number,
 ) {
-  await db().controls.delete(id);
+  await db()
+    .controls
+    .delete(id);
 
-  await cloudDeleteControl(id);
+  await cloudDeleteControl(
+    id,
+  );
 }
 
 export async function upsertControl(
@@ -348,10 +375,16 @@ export async function upsertControl(
 ) {
   const d = db();
 
-  if (c.id) {
-    const updated: Control = {
+  /* ===========================
+     EDITAR
+  =========================== */
+
+  if (c.id != null) {
+    const updated:
+      Control = {
       ...c,
-      updatedAt: nowISO(),
+      updatedAt:
+        nowISO(),
     };
 
     await d.controls.update(
@@ -366,10 +399,17 @@ export async function upsertControl(
     return c.id;
   }
 
-  const created: Control = {
+  /* ===========================
+     CREAR
+  =========================== */
+
+  const created:
+    Control = {
     ...c,
-    createdAt: nowISO(),
-    updatedAt: nowISO(),
+    createdAt:
+      nowISO(),
+    updatedAt:
+      nowISO(),
   };
 
   const id =
@@ -377,9 +417,11 @@ export async function upsertControl(
       created,
     );
 
-  const finalRecord: Control = {
+  const finalRecord:
+    Control = {
     ...created,
-    id: Number(id),
+    id:
+      Number(id),
   };
 
   await cloudUpsertControl(
@@ -398,10 +440,11 @@ export async function upsertWeightRecord(
 ) {
   const d = db();
 
-  /*
-   * EDITAR PESAJES EXISTENTES
-   */
-  if (record.id) {
+  /* ===========================
+     EDITAR
+  =========================== */
+
+  if (record.id != null) {
     const updated:
       WeightRecord = {
       ...record,
@@ -421,9 +464,10 @@ export async function upsertWeightRecord(
     return record.id;
   }
 
-  /*
-   * CREAR PESAJES NUEVOS
-   */
+  /* ===========================
+     CREAR
+  =========================== */
+
   const created:
     WeightRecord = {
     ...record,
@@ -469,27 +513,64 @@ export async function deleteWeightRecord(
 ============================================================ */
 
 export async function upsertPlayer(
-  p: Player,
+  p: PlayerProfile,
 ) {
   const d = db();
 
-  if (p.id) {
+  /* ===========================
+     EDITAR
+  =========================== */
+
+  if (p.id != null) {
+    const updated:
+      PlayerProfile = {
+      ...p,
+      updatedAt:
+        nowISO(),
+    };
+
     await d.players.update(
       p.id,
-      {
-        ...p,
-        updatedAt: nowISO(),
-      },
+      updated,
+    );
+
+    await cloudUpsertPlayer(
+      updated,
     );
 
     return p.id;
   }
 
-  return await d.players.add({
+  /* ===========================
+     CREAR
+  =========================== */
+
+  const created:
+    PlayerProfile = {
     ...p,
-    createdAt: nowISO(),
-    updatedAt: nowISO(),
-  });
+    createdAt:
+      nowISO(),
+    updatedAt:
+      nowISO(),
+  };
+
+  const id =
+    await d.players.add(
+      created,
+    );
+
+  const finalRecord:
+    PlayerProfile = {
+    ...created,
+    id:
+      Number(id),
+  };
+
+  await cloudUpsertPlayer(
+    finalRecord,
+  );
+
+  return Number(id);
 }
 
 export async function deletePlayer(
@@ -497,6 +578,14 @@ export async function deletePlayer(
 ) {
   const d = db();
 
+  /*
+   * Conservamos el comportamiento
+   * que ya tenía la app:
+   *
+   * al borrar una jugadora localmente
+   * eliminamos sus controles y sus
+   * antropometrías completas.
+   */
   await d.transaction(
     "rw",
     d.players,
@@ -504,17 +593,27 @@ export async function deletePlayer(
     d.fullAnthropometries,
     async () => {
       await d.controls
-        .where("playerId")
+        .where(
+          "playerId",
+        )
         .equals(id)
         .delete();
 
       await d.fullAnthropometries
-        .where("playerId")
+        .where(
+          "playerId",
+        )
         .equals(id)
         .delete();
 
-      await d.players.delete(id);
+      await d.players.delete(
+        id,
+      );
     },
+  );
+
+  await cloudDeletePlayer(
+    id,
   );
 }
 
@@ -527,23 +626,60 @@ export async function upsertObjectivePeriod(
 ) {
   const d = db();
 
-  if (period.id) {
+  /* ===========================
+     EDITAR
+  =========================== */
+
+  if (period.id != null) {
+    const updated:
+      ObjectivePeriod = {
+      ...period,
+      updatedAt:
+        nowISO(),
+    };
+
     await d.objectivePeriods.update(
       period.id,
-      {
-        ...period,
-        updatedAt: nowISO(),
-      },
+      updated,
+    );
+
+    await cloudUpsertObjectivePeriod(
+      updated,
     );
 
     return period.id;
   }
 
-  return await d.objectivePeriods.add({
+  /* ===========================
+     CREAR
+  =========================== */
+
+  const created:
+    ObjectivePeriod = {
     ...period,
-    createdAt: nowISO(),
-    updatedAt: nowISO(),
-  });
+    createdAt:
+      nowISO(),
+    updatedAt:
+      nowISO(),
+  };
+
+  const id =
+    await d.objectivePeriods.add(
+      created,
+    );
+
+  const finalRecord:
+    ObjectivePeriod = {
+    ...created,
+    id:
+      Number(id),
+  };
+
+  await cloudUpsertObjectivePeriod(
+    finalRecord,
+  );
+
+  return Number(id);
 }
 
 /* ============================================================
@@ -555,23 +691,60 @@ export async function upsertHydrationTest(
 ) {
   const d = db();
 
-  if (test.id) {
+  /* ===========================
+     EDITAR
+  =========================== */
+
+  if (test.id != null) {
+    const updated:
+      HydrationTest = {
+      ...test,
+      updatedAt:
+        nowISO(),
+    };
+
     await d.hydrationTests.update(
       test.id,
-      {
-        ...test,
-        updatedAt: nowISO(),
-      },
+      updated,
+    );
+
+    await cloudUpsertHydrationTest(
+      updated,
     );
 
     return test.id;
   }
 
-  return await d.hydrationTests.add({
+  /* ===========================
+     CREAR
+  =========================== */
+
+  const created:
+    HydrationTest = {
     ...test,
-    createdAt: nowISO(),
-    updatedAt: nowISO(),
-  });
+    createdAt:
+      nowISO(),
+    updatedAt:
+      nowISO(),
+  };
+
+  const id =
+    await d.hydrationTests.add(
+      created,
+    );
+
+  const finalRecord:
+    HydrationTest = {
+    ...created,
+    id:
+      Number(id),
+  };
+
+  await cloudUpsertHydrationTest(
+    finalRecord,
+  );
+
+  return Number(id);
 }
 
 export async function deleteHydrationTest(
@@ -580,6 +753,10 @@ export async function deleteHydrationTest(
   await db()
     .hydrationTests
     .delete(id);
+
+  await cloudDeleteHydrationTest(
+    id,
+  );
 }
 
 /* ============================================================
@@ -587,192 +764,342 @@ export async function deleteHydrationTest(
    5 COMPONENTES / KERR / ANTROPOGIMS
 ============================================================ */
 
+/*
+ * Una antropometría completa también
+ * crea o actualiza automáticamente
+ * el control habitual correspondiente.
+ *
+ * IMPORTANTE:
+ *
+ * primero terminamos toda la transacción
+ * de IndexedDB.
+ *
+ * Recién después sincronizamos con
+ * Supabase.
+ *
+ * Nunca esperamos una llamada de red
+ * dentro de una transacción de Dexie.
+ */
 export async function upsertFullAnthropometry(
   anthropometry: FullAnthropometry,
 ) {
   const d = db();
 
-  return await d.transaction(
-    "rw",
-    d.fullAnthropometries,
-    d.controls,
-    async () => {
-      const now =
-        nowISO();
+  const localResult =
+    await d.transaction(
+      "rw",
+      d.fullAnthropometries,
+      d.controls,
+      async () => {
+        const now =
+          nowISO();
 
-      const results =
-        calculateFiveComponents(
-          anthropometry,
-        );
+        /* ====================================================
+           1. RECALCULAR RESULTADOS
+        ==================================================== */
 
-      const controlData =
-        controlDataFromFullAnthropometry(
-          anthropometry,
-        );
-
-      let existingControl:
-        | Control
-        | undefined;
-
-      if (
-        anthropometry.linkedControlId !=
-        null
-      ) {
-        const linked =
-          await d.controls.get(
-            anthropometry.linkedControlId,
+        const results =
+          calculateFiveComponents(
+            anthropometry,
           );
+
+        const controlData =
+          controlDataFromFullAnthropometry(
+            anthropometry,
+          );
+
+        /* ====================================================
+           2. BUSCAR CONTROL HABITUAL
+        ==================================================== */
+
+        let existingControl:
+          | Control
+          | undefined;
+
+        /*
+         * Primero intentamos usar el vínculo
+         * previamente guardado.
+         */
+        if (
+          anthropometry.linkedControlId !=
+          null
+        ) {
+          const linked =
+            await d.controls.get(
+              anthropometry.linkedControlId,
+            );
+
+          if (
+            linked &&
+            linked.playerId ===
+              anthropometry.playerId &&
+            linked.date ===
+              anthropometry.date
+          ) {
+            existingControl =
+              linked;
+          }
+        }
+
+        /*
+         * Si no encontramos el vínculo,
+         * buscamos por jugadora + fecha.
+         */
+        if (!existingControl) {
+          existingControl =
+            await d.controls
+              .where(
+                "[playerId+date]",
+              )
+              .equals([
+                anthropometry.playerId,
+                anthropometry.date,
+              ])
+              .first();
+        }
+
+        /* ====================================================
+           3. CREAR O ACTUALIZAR CONTROL
+        ==================================================== */
+
+        let controlToSync:
+          Control;
 
         if (
-          linked &&
-          linked.playerId ===
-            anthropometry.playerId &&
-          linked.date ===
-            anthropometry.date
+          existingControl?.id !=
+          null
         ) {
-          existingControl =
-            linked;
-        }
-      }
-
-      if (!existingControl) {
-        existingControl =
-          await d.controls
-            .where(
-              "[playerId+date]",
-            )
-            .equals([
-              anthropometry.playerId,
-              anthropometry.date,
-            ])
-            .first();
-      }
-
-      let controlId: number;
-
-      if (
-        existingControl?.id !=
-        null
-      ) {
-        await d.controls.update(
-          existingControl.id,
-          {
+          /*
+           * Conservamos notas y fecha de
+           * creación del control existente.
+           */
+          controlToSync = {
+            ...existingControl,
             ...controlData,
-            updatedAt: now,
-          },
-        );
 
-        controlId =
-          existingControl.id;
-      } else {
-        const newControl:
-          Control = {
-          playerId:
-            anthropometry.playerId,
+            id:
+              existingControl.id,
 
-          date:
-            anthropometry.date,
+            updatedAt:
+              now,
+          };
 
-          ...controlData,
+          await d.controls.update(
+            existingControl.id,
+            controlToSync,
+          );
+        } else {
+          const newControl:
+            Control = {
+            playerId:
+              anthropometry.playerId,
 
-          notes: null,
+            date:
+              anthropometry.date,
 
-          createdAt: now,
-          updatedAt: now,
+            ...controlData,
+
+            notes:
+              null,
+
+            createdAt:
+              now,
+
+            updatedAt:
+              now,
+          };
+
+          const addedControlId =
+            await d.controls.add(
+              newControl,
+            );
+
+          controlToSync = {
+            ...newControl,
+
+            id:
+              Number(
+                addedControlId,
+              ),
+          };
+        }
+
+        const controlId =
+          controlToSync.id!;
+
+        /* ====================================================
+           4. BUSCAR ANTROPOMETRÍA EXISTENTE
+        ==================================================== */
+
+        let existingAnthropometry:
+          | FullAnthropometry
+          | undefined;
+
+        /*
+         * Primero por ID.
+         */
+        if (
+          anthropometry.id !=
+          null
+        ) {
+          existingAnthropometry =
+            await d.fullAnthropometries.get(
+              anthropometry.id,
+            );
+        }
+
+        /*
+         * Si no aparece por ID,
+         * buscamos jugadora + fecha.
+         *
+         * Esto evita duplicados al importar
+         * dos veces el mismo archivo.
+         */
+        if (
+          !existingAnthropometry
+        ) {
+          existingAnthropometry =
+            await d.fullAnthropometries
+              .where(
+                "[playerId+date]",
+              )
+              .equals([
+                anthropometry.playerId,
+                anthropometry.date,
+              ])
+              .first();
+        }
+
+        /* ====================================================
+           5. CONSTRUIR REGISTRO FINAL
+        ==================================================== */
+
+        const finalRecord:
+          FullAnthropometry = {
+          ...anthropometry,
+
+          id:
+            existingAnthropometry
+              ?.id ??
+            anthropometry.id,
+
+          results,
+
+          linkedControlId:
+            controlId,
+
+          createdAt:
+            existingAnthropometry
+              ?.createdAt ??
+            anthropometry.createdAt ??
+            now,
+
+          updatedAt:
+            now,
         };
 
-        const addedId =
-          await d.controls.add(
-            newControl,
+        /* ====================================================
+           6. GUARDAR ANTROPOMETRÍA LOCAL
+        ==================================================== */
+
+        let finalAnthropometry:
+          FullAnthropometry;
+
+        if (
+          existingAnthropometry?.id !=
+          null
+        ) {
+          const existingId =
+            existingAnthropometry.id;
+
+          await d.fullAnthropometries.update(
+            existingId,
+            {
+              ...finalRecord,
+              id:
+                existingId,
+            },
           );
 
-        controlId =
-          Number(addedId);
-      }
+          finalAnthropometry = {
+            ...finalRecord,
+            id:
+              existingId,
+          };
+        } else {
+          const newId =
+            await d.fullAnthropometries.add(
+              finalRecord,
+            );
 
-      let existingAnthropometry:
-        | FullAnthropometry
-        | undefined;
+          finalAnthropometry = {
+            ...finalRecord,
 
-      if (
-        anthropometry.id !=
-        null
-      ) {
-        existingAnthropometry =
-          await d.fullAnthropometries.get(
-            anthropometry.id,
-          );
-      }
+            id:
+              Number(newId),
+          };
+        }
 
-      if (
-        !existingAnthropometry
-      ) {
-        existingAnthropometry =
-          await d.fullAnthropometries
-            .where(
-              "[playerId+date]",
-            )
-            .equals([
-              anthropometry.playerId,
-              anthropometry.date,
-            ])
-            .first();
-      }
+        return {
+          id:
+            finalAnthropometry.id!,
 
-      const finalRecord:
-        FullAnthropometry = {
-        ...anthropometry,
+          control:
+            controlToSync,
 
-        id:
-          existingAnthropometry?.id ??
-          anthropometry.id,
+          anthropometry:
+            finalAnthropometry,
+        };
+      },
+    );
 
-        results,
+  /* ==========================================================
+     7. SINCRONIZAR CON SUPABASE
+  ========================================================== */
 
-        linkedControlId:
-          controlId,
-
-        createdAt:
-          existingAnthropometry
-            ?.createdAt ??
-          anthropometry.createdAt ??
-          now,
-
-        updatedAt:
-          now,
-      };
-
-      if (
-        existingAnthropometry?.id !=
-        null
-      ) {
-        await d.fullAnthropometries.update(
-          existingAnthropometry.id,
-          finalRecord,
-        );
-
-        return (
-          existingAnthropometry.id
-        );
-      }
-
-      const newId =
-        await d.fullAnthropometries.add(
-          finalRecord,
-        );
-
-      return Number(newId);
-    },
+  /*
+   * Primero subimos el control.
+   *
+   * Después la antropometría, porque
+   * linkedControlId depende de ese control.
+   */
+  await cloudUpsertControl(
+    localResult.control,
   );
+
+  await cloudUpsertFullAnthropometry(
+    localResult.anthropometry,
+  );
+
+  return localResult.id;
 }
 
+/* ============================================================
+   ELIMINAR ANTROPOMETRÍA COMPLETA
+============================================================ */
+
+/*
+ * Igual que antes:
+ *
+ * borrar una antropometría completa
+ * NO borra automáticamente el control
+ * habitual asociado.
+ */
 export async function deleteFullAnthropometry(
   id: number,
 ) {
   await db()
     .fullAnthropometries
     .delete(id);
+
+  await cloudDeleteFullAnthropometry(
+    id,
+  );
 }
+
+/* ============================================================
+   BUSCAR ANTROPOMETRÍA POR FECHA
+============================================================ */
 
 export async function findFullAnthropometryByDate(
   playerId: number,
