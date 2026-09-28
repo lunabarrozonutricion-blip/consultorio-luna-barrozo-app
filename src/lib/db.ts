@@ -5,6 +5,11 @@ import {
   controlDataFromFullAnthropometry,
 } from "./kerr";
 
+import {
+  cloudDeleteControl,
+  cloudUpsertControl,
+} from "./cloud-write";
+
 import type {
   Control,
   FullAnthropometry,
@@ -343,6 +348,8 @@ export async function deleteControl(
   id: number,
 ) {
   await db().controls.delete(id);
+
+  await cloudDeleteControl(id);
 }
 
 export async function upsertControl(
@@ -350,23 +357,71 @@ export async function upsertControl(
 ) {
   const d = db();
 
+  /*
+   * EDITAR CONTROL EXISTENTE
+   */
   if (c.id) {
+    const updated:
+      Control = {
+      ...c,
+      updatedAt:
+        nowISO(),
+    };
+
     await d.controls.update(
       c.id,
-      {
-        ...c,
-        updatedAt: nowISO(),
-      },
+      updated,
+    );
+
+    /*
+     * Una vez guardado localmente,
+     * enviamos exactamente el mismo
+     * registro a Supabase.
+     */
+    await cloudUpsertControl(
+      updated,
     );
 
     return c.id;
   }
 
-  return await d.controls.add({
+  /*
+   * CREAR CONTROL NUEVO
+   */
+  const created:
+    Control = {
     ...c,
-    createdAt: nowISO(),
-    updatedAt: nowISO(),
-  });
+    createdAt:
+      nowISO(),
+    updatedAt:
+      nowISO(),
+  };
+
+  /*
+   * Primero IndexedDB genera el ID.
+   */
+  const id =
+    await d.controls.add(
+      created,
+    );
+
+  /*
+   * Después armamos el registro final
+   * incluyendo ese ID para que Supabase
+   * use exactamente el mismo identificador.
+   */
+  const finalRecord:
+    Control = {
+    ...created,
+    id:
+      Number(id),
+  };
+
+  await cloudUpsertControl(
+    finalRecord,
+  );
+
+  return Number(id);
 }
 
 /* ============================================================
