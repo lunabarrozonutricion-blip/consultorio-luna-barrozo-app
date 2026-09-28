@@ -1,95 +1,128 @@
-import Dexie, { type Table } from "dexie";
+        if (
+          anthropometry.id !=
+          null
+        ) {
+          existingAnthropometry =
+            await d.fullAnthropometries.get(
+              anthropometry.id,
+            );
+        }
 
-import {
-  calculateFiveComponents,
-  controlDataFromFullAnthropometry,
-} from "./kerr";
+        if (
+          !existingAnthropometry
+        ) {
+          existingAnthropometry =
+            await d.fullAnthropometries
+              .where(
+                "[playerId+date]",
+              )
+              .equals([
+                anthropometry.playerId,
+                anthropometry.date,
+              ])
+              .first();
+        }
 
-import {
-  queueDeleteOperation,
-  queueUpsertOperation,
-} from "./sync-state";
+        const finalRecord:
+          FullAnthropometry = {
+          ...anthropometry,
+          id:
+            existingAnthropometry
+              ?.id ??
+            undefined,
+          results,
+          linkedControlId:
+            controlId,
+          createdAt:
+            existingAnthropometry
+              ?.createdAt ??
+            anthropometry.createdAt ??
+            timestamp,
+          updatedAt:
+            timestamp,
+        };
 
-import type {
-  Control,
-  FullAnthropometry,
-  HydrationTest,
-  ObjectivePeriod,
-  Player,
-  WeightRecord,
-} from "./types";
+        let anthropometryId:
+          number;
 
-type PlayerProfile = Player & {
-  phone?: string | null;
-  email?: string | null;
-  generalNotes?: string | null;
-};
+        let anthropometryIsNew =
+          false;
 
-export class AnthroDB extends Dexie {
-  players!: Table<
-    PlayerProfile,
-    number
-  >;
+        if (
+          existingAnthropometry?.id !=
+          null
+        ) {
+          anthropometryId =
+            existingAnthropometry.id;
 
-  controls!: Table<
-    Control,
-    number
-  >;
+          await d.fullAnthropometries.put(
+            {
+              ...finalRecord,
+              id:
+                anthropometryId,
+            },
+          );
+        } else {
+          anthropometryId =
+            Number(
+              await d.fullAnthropometries.add(
+                finalRecord,
+              ),
+            );
 
-  weightRecords!: Table<
-    WeightRecord,
-    number
-  >;
+          anthropometryIsNew =
+            true;
+        }
 
-  objectivePeriods!: Table<
-    ObjectivePeriod,
-    number
-  >;
-
-  hydrationTests!: Table<
-    HydrationTest,
-    number
-  >;
-
-  fullAnthropometries!: Table<
-    FullAnthropometry,
-    number
-  >;
-
-  constructor() {
-    super(
-      "sanlorenzo-antropometria",
+        return {
+          controlId,
+          controlIsNew,
+          anthropometryId,
+          anthropometryIsNew,
+        };
+      },
     );
 
-    this.version(1).stores({
-      players:
-        "++id, name, active",
+  queueUpsertOperation(
+    "control",
+    result.controlId,
+    result.controlIsNew,
+  );
 
-      controls:
-        "++id, playerId, date, [playerId+date]",
-    });
+  queueUpsertOperation(
+    "fullAnthropometry",
+    result.anthropometryId,
+    result.anthropometryIsNew,
+  );
 
-    this.version(2).stores({
-      players:
-        "++id, name, active",
+  schedulePendingSync();
 
-      controls:
-        "++id, playerId, date, [playerId+date]",
+  return result.anthropometryId;
+}
 
-      weightRecords:
-        "++id, playerId, date, condition, [playerId+date]",
-    });
+export async function deleteFullAnthropometry(
+  id: number,
+) {
+  await db()
+    .fullAnthropometries
+    .delete(id);
 
-    this.version(3).stores({
-      players:
-        "++id, name, active",
+  queueDelete(
+    "fullAnthropometry",
+    id,
+  );
+}
 
-      controls:
-        "++id, playerId, date, [playerId+date]",
-
-      weightRecords:
-        "++id, playerId, date, condition, [playerId+date]",
-
-      objectivePeriods:
-        "++id, &key, year, month",
-    });
+export async function findFullAnthropometryByDate(
+  playerId: number,
+  date: string,
+) {
+  return await db()
+    .fullAnthropometries
+    .where(
+      "[playerId+date]",
+    )
+    .equals([
+      playerId,
+      date,
+    ])
