@@ -46,49 +46,96 @@ type Draft = {
   notes: string;
 };
 
-type ComparisonMode = "previous" | "date";
+type ComparisonMode =
+  | "previous"
+  | "date";
 
-function dateMs(value: string) {
-  return new Date(`${value}T00:00:00`).getTime();
+function dateMs(
+  value: string,
+) {
+  return new Date(
+    `${value}T00:00:00`,
+  ).getTime();
 }
 
-function conditionLabel(value: WeightCondition) {
+function conditionLabel(
+  value: WeightCondition,
+) {
   return (
     WEIGHT_CONDITIONS.find(
-      (condition) => condition.value === value,
-    )?.label ?? value
+      (
+        condition,
+      ) =>
+        condition.value ===
+        value,
+    )?.label ??
+    value
   );
 }
 
 function formatKg(
-  value: number | null | undefined,
+  value:
+    | number
+    | null
+    | undefined,
 ) {
-  if (value == null) return "—";
-  return `${fmt(value, 1)} kg`;
+  if (
+    value == null
+  ) {
+    return "—";
+  }
+
+  return `${fmt(
+    value,
+    1,
+  )} kg`;
 }
 
 function formatDiffKg(
-  value: number | null | undefined,
+  value:
+    | number
+    | null
+    | undefined,
 ) {
-  if (value == null) return "—";
-  return `${fmtDiff(value, 1)} kg`;
+  if (
+    value == null
+  ) {
+    return "—";
+  }
+
+  return `${fmtDiff(
+    value,
+    1,
+  )} kg`;
 }
 
 function differenceClass(
-  value: number | null,
+  value:
+    | number
+    | null,
 ) {
-  if (value == null) {
+  if (
+    value == null
+  ) {
     return "";
   }
 
   const rounded =
-    Math.round(value * 10) / 10;
+    Math.round(
+      value * 10,
+    ) / 10;
 
-  if (rounded >= 0.5) {
+  if (
+    rounded >=
+    0.5
+  ) {
     return "bg-red-100 text-red-700";
   }
 
-  if (rounded <= -0.2) {
+  if (
+    rounded <=
+    -0.2
+  ) {
     return "bg-emerald-100 text-emerald-700";
   }
 
@@ -96,45 +143,112 @@ function differenceClass(
 }
 
 function Pesajes() {
-  const players = usePlayers();
-  const records = useWeightRecords();
+  const players =
+    usePlayers();
 
-  const [date, setDate] = useState(todayISO());
-  const [search, setSearch] = useState("");
-  const [saving, setSaving] = useState(false);
+  const records =
+    useWeightRecords();
 
-  const [comparisonMode, setComparisonMode] =
-    useState<ComparisonMode>("previous");
+  const [
+    date,
+    setDate,
+  ] =
+    useState(
+      todayISO(),
+    );
 
-  const [referenceDate, setReferenceDate] =
+  const [
+    search,
+    setSearch,
+  ] =
     useState("");
 
-  const [drafts, setDrafts] = useState<
-    Record<number, Draft>
-  >({});
+  const [
+    saving,
+    setSaving,
+  ] =
+    useState(false);
 
-  const weightDates = useMemo(() => {
-    return [
-      ...new Set(
-        (records ?? []).map(
-          (record) => record.date,
+  const [
+    comparisonMode,
+    setComparisonMode,
+  ] =
+    useState<ComparisonMode>(
+      "previous",
+    );
+
+  const [
+    referenceDate,
+    setReferenceDate,
+  ] =
+    useState("");
+
+  const [
+    drafts,
+    setDrafts,
+  ] =
+    useState<
+      Record<
+        number,
+        Draft
+      >
+    >({});
+
+  const weightDates =
+    useMemo(() => {
+      return [
+        ...new Set(
+          (
+            records ??
+            []
+          ).map(
+            (
+              record,
+            ) =>
+              record.date,
+          ),
         ),
-      ),
-    ].sort((a, b) => b.localeCompare(a));
-  }, [records]);
+      ].sort(
+        (
+          a,
+          b,
+        ) =>
+          b.localeCompare(
+            a,
+          ),
+      );
+    }, [
+      records,
+    ]);
 
   const latestWeightDate =
-    weightDates[0] ?? null;
+    weightDates[0] ??
+    null;
 
   const availableReferenceDates =
-    useMemo(() => {
-      return weightDates.filter(
-        (weightDate) => weightDate < date,
-      );
-    }, [weightDates, date]);
+    useMemo(
+      () => {
+        return weightDates.filter(
+          (
+            weightDate,
+          ) =>
+            weightDate <
+            date,
+        );
+      },
+      [
+        weightDates,
+        date,
+      ],
+    );
 
   useEffect(() => {
-    if (comparisonMode !== "date") return;
+    if (
+      comparisonMode !==
+      "date"
+    ) {
+      return;
+    }
 
     if (
       referenceDate &&
@@ -146,7 +260,8 @@ function Pesajes() {
     }
 
     setReferenceDate(
-      availableReferenceDates[0] ?? "",
+      availableReferenceDates[0] ??
+        "",
     );
   }, [
     comparisonMode,
@@ -155,290 +270,512 @@ function Pesajes() {
   ]);
 
   const selectedDateHasRecords =
-    weightDates.includes(date);
+    weightDates.includes(
+      date,
+    );
 
-  const recordsForDate = useMemo(() => {
-    const map = new Map<
-      number,
-      NonNullable<typeof records>[number]
-    >();
+  const recordsForDate =
+    useMemo(() => {
+      const map =
+        new Map<
+          number,
+          NonNullable<
+            typeof records
+          >[number]
+        >();
 
-    for (const record of records ?? []) {
-      if (
-        record.date === date &&
-        !map.has(record.playerId)
+      for (
+        const record
+        of records ??
+        []
       ) {
-        map.set(
-          record.playerId,
-          record,
-        );
+        if (
+          record.date ===
+            date &&
+          !map.has(
+            record.playerId,
+          )
+        ) {
+          map.set(
+            record.playerId,
+            record,
+          );
+        }
       }
-    }
 
-    return map;
-  }, [records, date]);
+      return map;
+    }, [
+      records,
+      date,
+    ]);
 
   useEffect(() => {
-    if (!players || !records) return;
+    if (
+      !players ||
+      !records
+    ) {
+      return;
+    }
 
-    const next: Record<number, Draft> = {};
+    const next:
+      Record<
+        number,
+        Draft
+      > = {};
 
-    for (const player of players) {
-      if (player.id == null) continue;
+    for (
+      const player
+      of players
+    ) {
+      if (
+        player.id ==
+        null
+      ) {
+        continue;
+      }
 
-      const existing = records.find(
-        (record) =>
-          record.playerId === player.id &&
-          record.date === date,
-      );
+      const existing =
+        records.find(
+          (
+            record,
+          ) =>
+            record.playerId ===
+              player.id &&
+            record.date ===
+              date,
+        );
 
-      next[player.id] = {
+      next[
+        player.id
+      ] = {
         weight:
-          existing?.weight != null
+          existing?.weight !=
+          null
             ? String(
                 existing.weight,
-              ).replace(".", ",")
+              ).replace(
+                ".",
+                ",",
+              )
             : "",
+
         condition:
-          existing?.condition ?? "normal",
-        notes: existing?.notes ?? "",
+          existing?.condition ??
+          "normal",
+
+        notes:
+          existing?.notes ??
+          "",
       };
     }
 
-    setDrafts(next);
-  }, [players, records, date]);
-
-  const filteredPlayers = useMemo(() => {
-    const text =
-      search.trim().toLowerCase();
-
-    if (!text) {
-      return players ?? [];
-    }
-
-    return (players ?? []).filter(
-      (player) =>
-        player.name
-          .toLowerCase()
-          .includes(text),
+    setDrafts(
+      next,
     );
-  }, [players, search]);
-
-  const referenceByPlayer = useMemo(() => {
-    const map = new Map<
-      number,
-      NonNullable<typeof records>[number]
-    >();
-
-    for (const player of players ?? []) {
-      if (player.id == null) continue;
-
-      const candidates = (
-        records ?? []
-      ).filter(
-        (record) =>
-          record.playerId === player.id &&
-          record.date < date &&
-          record.weight != null,
-      );
-
-      if (candidates.length === 0) {
-        continue;
-      }
-
-      if (
-        comparisonMode === "previous"
-      ) {
-        const previous = [
-          ...candidates,
-        ].sort((a, b) =>
-          b.date.localeCompare(a.date),
-        )[0];
-
-        if (previous) {
-          map.set(
-            player.id,
-            previous,
-          );
-        }
-
-        continue;
-      }
-
-      if (!referenceDate) {
-        continue;
-      }
-
-      const refTime =
-        dateMs(referenceDate);
-
-      const closest = [
-        ...candidates,
-      ].sort((a, b) => {
-        const diffA = Math.abs(
-          dateMs(a.date) - refTime,
-        );
-
-        const diffB = Math.abs(
-          dateMs(b.date) - refTime,
-        );
-
-        if (diffA !== diffB) {
-          return diffA - diffB;
-        }
-
-        const aIsBefore =
-          a.date <= referenceDate;
-
-        const bIsBefore =
-          b.date <= referenceDate;
-
-        if (aIsBefore !== bIsBefore) {
-          return aIsBefore ? -1 : 1;
-        }
-
-        return b.date.localeCompare(
-          a.date,
-        );
-      })[0];
-
-      if (closest) {
-        map.set(
-          player.id,
-          closest,
-        );
-      }
-    }
-
-    return map;
   }, [
     players,
     records,
     date,
-    comparisonMode,
-    referenceDate,
   ]);
 
-  const reportRows = useMemo(() => {
-    return (players ?? [])
-      .filter(
-        (player) =>
-          player.id != null,
-      )
-      .map((player) => {
-        const playerId =
-          player.id as number;
+  const filteredPlayers =
+    useMemo(() => {
+      const text =
+        search
+          .trim()
+          .toLowerCase();
 
-        const draft =
-          drafts[playerId] ?? {
-            weight: "",
-            condition:
-              "normal" as WeightCondition,
-            notes: "",
-          };
+      if (!text) {
+        return (
+          players ??
+          []
+        );
+      }
 
-        const currentWeight =
-          parseNum(draft.weight);
-
-        const reference =
-          referenceByPlayer.get(
-            playerId,
-          );
-
-        const difference =
-          currentWeight !== null &&
-          reference?.weight != null
-            ? currentWeight -
-              reference.weight
-            : null;
-
-        const hasCurrentRecord =
-          recordsForDate.has(
-            playerId,
-          );
-
-        const hasData =
-          hasCurrentRecord ||
-          currentWeight !== null ||
-          draft.condition !==
-            "normal" ||
-          draft.notes.trim() !== "";
-
-        return {
+      return (
+        players ??
+        []
+      ).filter(
+        (
           player,
-          currentWeight,
-          reference,
-          difference,
-          condition:
-            draft.condition,
-          notes:
-            draft.notes.trim(),
-          hasData,
-          usedDifferentDate:
-            comparisonMode ===
-              "date" &&
-            Boolean(
-              referenceDate &&
-                reference?.date &&
-                reference.date !==
-                  referenceDate,
+        ) =>
+          player.name
+            .toLowerCase()
+            .includes(
+              text,
             ),
-        };
-      })
-      .filter(
-        (row) => row.hasData,
       );
-  }, [
-    players,
-    drafts,
-    referenceByPlayer,
-    recordsForDate,
-    comparisonMode,
-    referenceDate,
-  ]);
+    }, [
+      players,
+      search,
+    ]);
+
+  const referenceByPlayer =
+    useMemo(() => {
+      const map =
+        new Map<
+          number,
+          NonNullable<
+            typeof records
+          >[number]
+        >();
+
+      for (
+        const player
+        of players ??
+        []
+      ) {
+        if (
+          player.id ==
+          null
+        ) {
+          continue;
+        }
+
+        const candidates =
+          (
+            records ??
+            []
+          ).filter(
+            (
+              record,
+            ) =>
+              record.playerId ===
+                player.id &&
+              record.date <
+                date &&
+              record.weight !=
+                null,
+          );
+
+        if (
+          candidates.length ===
+          0
+        ) {
+          continue;
+        }
+
+        if (
+          comparisonMode ===
+          "previous"
+        ) {
+          const previous =
+            [
+              ...candidates,
+            ].sort(
+              (
+                a,
+                b,
+              ) =>
+                b.date.localeCompare(
+                  a.date,
+                ),
+            )[0];
+
+          if (
+            previous
+          ) {
+            map.set(
+              player.id,
+              previous,
+            );
+          }
+
+          continue;
+        }
+
+        if (
+          !referenceDate
+        ) {
+          continue;
+        }
+
+        const refTime =
+          dateMs(
+            referenceDate,
+          );
+
+        const closest =
+          [
+            ...candidates,
+          ].sort(
+            (
+              a,
+              b,
+            ) => {
+              const diffA =
+                Math.abs(
+                  dateMs(
+                    a.date,
+                  ) -
+                    refTime,
+                );
+
+              const diffB =
+                Math.abs(
+                  dateMs(
+                    b.date,
+                  ) -
+                    refTime,
+                );
+
+              if (
+                diffA !==
+                diffB
+              ) {
+                return (
+                  diffA -
+                  diffB
+                );
+              }
+
+              const aIsBefore =
+                a.date <=
+                referenceDate;
+
+              const bIsBefore =
+                b.date <=
+                referenceDate;
+
+              if (
+                aIsBefore !==
+                bIsBefore
+              ) {
+                return aIsBefore
+                  ? -1
+                  : 1;
+              }
+
+              return b.date.localeCompare(
+                a.date,
+              );
+            },
+          )[0];
+
+        if (
+          closest
+        ) {
+          map.set(
+            player.id,
+            closest,
+          );
+        }
+      }
+
+      return map;
+    }, [
+      players,
+      records,
+      date,
+      comparisonMode,
+      referenceDate,
+    ]);
+
+  const reportRows =
+    useMemo(() => {
+      return (
+        players ??
+        []
+      )
+        .filter(
+          (
+            player,
+          ) =>
+            player.id !=
+            null,
+        )
+        .map(
+          (
+            player,
+          ) => {
+            const playerId =
+              player.id as number;
+
+            const draft =
+              drafts[
+                playerId
+              ] ?? {
+                weight:
+                  "",
+
+                condition:
+                  "normal" as WeightCondition,
+
+                notes:
+                  "",
+              };
+
+            const currentWeight =
+              parseNum(
+                draft.weight,
+              );
+
+            const reference =
+              referenceByPlayer.get(
+                playerId,
+              );
+
+            const difference =
+              currentWeight !==
+                null &&
+              reference?.weight !=
+                null
+                ? currentWeight -
+                  reference.weight
+                : null;
+
+            const hasCurrentRecord =
+              recordsForDate.has(
+                playerId,
+              );
+
+            const hasData =
+              hasCurrentRecord ||
+              currentWeight !==
+                null ||
+              draft.condition !==
+                "normal" ||
+              draft.notes.trim() !==
+                "";
+
+            return {
+              player,
+              currentWeight,
+              reference,
+              difference,
+
+              condition:
+                draft.condition,
+
+              notes:
+                draft.notes.trim(),
+
+              hasData,
+
+              usedDifferentDate:
+                comparisonMode ===
+                  "date" &&
+                Boolean(
+                  referenceDate &&
+                    reference?.date &&
+                    reference.date !==
+                      referenceDate,
+                ),
+            };
+          },
+        )
+        .filter(
+          (
+            row,
+          ) =>
+            row.hasData,
+        );
+    }, [
+      players,
+      drafts,
+      referenceByPlayer,
+      recordsForDate,
+      comparisonMode,
+      referenceDate,
+    ]);
 
   const comparisonDescription =
-    comparisonMode === "previous"
+    comparisonMode ===
+    "previous"
       ? "Último pesaje previo de cada jugadora"
       : referenceDate
-        ? `Fecha objetivo ${fmtDate(referenceDate)}`
+        ? `Fecha objetivo ${fmtDate(
+            referenceDate,
+          )}`
         : "Fecha de referencia";
 
   function updateDraft(
     playerId: number,
-    patch: Partial<Draft>,
+    patch:
+      Partial<Draft>,
   ) {
-    setDrafts((current) => ({
-      ...current,
-      [playerId]: {
-        ...(current[playerId] ?? {
-          weight: "",
-          condition: "normal",
-          notes: "",
-        }),
-        ...patch,
-      },
-    }));
+    setDrafts(
+      (
+        current,
+      ) => ({
+        ...current,
+
+        [playerId]: {
+          ...(
+            current[
+              playerId
+            ] ?? {
+              weight:
+                "",
+
+              condition:
+                "normal",
+
+              notes:
+                "",
+            }
+          ),
+
+          ...patch,
+        },
+      }),
+    );
   }
 
   async function guardar() {
-    if (!players) return;
+    console.log(
+      "PESAJES: click guardar",
+      {
+        date,
+        players:
+          players?.length ??
+          0,
+      },
+    );
+
+    if (!players) {
+      console.warn(
+        "PESAJES: players todavía no cargó",
+      );
+
+      return;
+    }
 
     try {
-      setSaving(true);
+      setSaving(
+        true,
+      );
+
+      console.log(
+        "PESAJES: inicio del guardado",
+      );
 
       let saved = 0;
 
-      for (const player of players) {
-        if (player.id == null) continue;
+      for (
+        const player
+        of players
+      ) {
+        if (
+          player.id ==
+          null
+        ) {
+          continue;
+        }
 
         const draft =
-          drafts[player.id];
+          drafts[
+            player.id
+          ];
 
-        if (!draft) continue;
+        if (!draft) {
+          continue;
+        }
 
         const weight =
-          parseNum(draft.weight);
+          parseNum(
+            draft.weight,
+          );
 
         const notes =
           draft.notes.trim();
@@ -449,10 +786,12 @@ function Pesajes() {
           );
 
         const hasData =
-          weight !== null ||
+          weight !==
+            null ||
           draft.condition !==
             "normal" ||
-          notes !== "";
+          notes !==
+            "";
 
         if (
           !hasData &&
@@ -461,34 +800,101 @@ function Pesajes() {
           continue;
         }
 
-        await upsertWeightRecord({
-          id: existing?.id,
-          playerId: player.id,
-          date,
-          weight,
-          condition:
-            draft.condition,
-          notes: notes || null,
-          createdAt:
-            existing?.createdAt ??
-            nowISO(),
-          updatedAt: nowISO(),
-        });
+        console.log(
+          "PESAJES: procesando jugadora",
+          {
+            id:
+              player.id,
+
+            name:
+              player.name,
+
+            weight,
+
+            condition:
+              draft.condition,
+
+            existingId:
+              existing?.id ??
+              null,
+          },
+        );
+
+        console.log(
+          "PESAJES: llamando upsertWeightRecord",
+          player.name,
+        );
+
+        const savedId =
+          await upsertWeightRecord(
+            {
+              id:
+                existing?.id,
+
+              playerId:
+                player.id,
+
+              date,
+
+              weight,
+
+              condition:
+                draft.condition,
+
+              notes:
+                notes ||
+                null,
+
+              createdAt:
+                existing?.createdAt ??
+                nowISO(),
+
+              updatedAt:
+                nowISO(),
+            },
+          );
+
+        console.log(
+          "PESAJES: guardado OK",
+          {
+            player:
+              player.name,
+
+            id:
+              savedId,
+          },
+        );
 
         saved++;
       }
+
+      console.log(
+        "PESAJES: proceso completo",
+        {
+          saved,
+        },
+      );
 
       toast.success(
         `${saved} registros de pesaje guardados`,
       );
     } catch (error) {
-      console.error(error);
+      console.error(
+        "PESAJES: ERROR AL GUARDAR",
+        error,
+      );
 
       toast.error(
         "No se pudieron guardar los pesajes",
       );
     } finally {
-      setSaving(false);
+      console.log(
+        "PESAJES: fin guardar()",
+      );
+
+      setSaving(
+        false,
+      );
     }
   }
 
@@ -502,21 +908,30 @@ function Pesajes() {
             type="button"
             variant="outline"
             disabled={
-              reportRows.length === 0
+              reportRows.length ===
+              0
             }
             onClick={() =>
               window.print()
             }
           >
             <Printer className="h-4 w-4" />
+
             Imprimir informe
           </Button>
 
           <Button
-            onClick={() =>
-              void guardar()
+            type="button"
+            onClick={() => {
+              console.log(
+                "PESAJES: botón Guardar presionado",
+              );
+
+              void guardar();
+            }}
+            disabled={
+              saving
             }
-            disabled={saving}
           >
             <Save className="h-4 w-4" />
 
@@ -537,10 +952,15 @@ function Pesajes() {
 
               <input
                 type="date"
-                value={date}
-                onChange={(e) =>
+                value={
+                  date
+                }
+                onChange={(
+                  e,
+                ) =>
                   setDate(
-                    e.target.value,
+                    e.target
+                      .value,
                   )
                 }
                 className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 md:max-w-xs"
@@ -553,10 +973,15 @@ function Pesajes() {
               </span>
 
               <input
-                value={search}
-                onChange={(e) =>
+                value={
+                  search
+                }
+                onChange={(
+                  e,
+                ) =>
                   setSearch(
-                    e.target.value,
+                    e.target
+                      .value,
                   )
                 }
                 placeholder="Buscar..."
@@ -583,6 +1008,7 @@ function Pesajes() {
               }}
             >
               <Clock3 className="h-4 w-4" />
+
               Último pesaje
             </Button>
 
@@ -591,6 +1017,7 @@ function Pesajes() {
                 <span className="text-muted-foreground">
                   Último registrado:
                 </span>{" "}
+
                 <strong>
                   {fmtDate(
                     latestWeightDate,
@@ -602,10 +1029,12 @@ function Pesajes() {
 
           {!selectedDateHasRecords && (
             <div className="mt-4 rounded-md border border-border bg-muted/50 p-3 text-sm">
-              No hay pesajes cargados
-              para{" "}
+              No hay pesajes cargados para{" "}
+
               <strong>
-                {fmtDate(date)}
+                {fmtDate(
+                  date,
+                )}
               </strong>
               .
             </div>
@@ -622,7 +1051,9 @@ function Pesajes() {
 
             <div className="mt-2 flex flex-wrap gap-2">
               {weightDates.map(
-                (weightDate) => (
+                (
+                  weightDate,
+                ) => (
                   <button
                     key={
                       weightDate
@@ -660,9 +1091,7 @@ function Pesajes() {
               </h2>
 
               <p className="text-xs text-muted-foreground">
-                Elegí contra qué
-                pesaje calcular la
-                diferencia.
+                Elegí contra qué pesaje calcular la diferencia.
               </p>
             </div>
           </div>
@@ -706,11 +1135,8 @@ function Pesajes() {
           {comparisonMode ===
             "previous" && (
             <p className="mt-3 text-sm text-muted-foreground">
-              Cada jugadora se
-              compara con su último
-              peso real disponible,
-              aunque haya faltado a
-              controles intermedios.
+              Cada jugadora se compara con su último peso real disponible,
+              aunque haya faltado a controles intermedios.
             </p>
           )}
 
@@ -726,9 +1152,12 @@ function Pesajes() {
                   value={
                     referenceDate
                   }
-                  onChange={(e) =>
+                  onChange={(
+                    e,
+                  ) =>
                     setReferenceDate(
-                      e.target.value,
+                      e.target
+                        .value,
                     )
                   }
                   className="mt-1 h-10 w-full max-w-xs rounded-md border border-input bg-background px-3"
@@ -757,28 +1186,23 @@ function Pesajes() {
               {referenceDate && (
                 <p className="mt-3 text-sm text-muted-foreground">
                   Fecha objetivo:{" "}
+
                   <strong>
                     {fmtDate(
                       referenceDate,
                     )}
                   </strong>
-                  . Si una jugadora
-                  no tiene peso ese
-                  día, se usa su
-                  pesaje más cercano
-                  disponible y se
-                  muestra la fecha
-                  realmente utilizada.
+                  . Si una jugadora no tiene peso ese día, se usa su pesaje
+                  más cercano disponible y se muestra la fecha realmente
+                  utilizada.
                 </p>
               )}
             </div>
           )}
 
           <p className="mt-4 text-xs text-muted-foreground">
-            “Indispuesta” funciona
-            como contexto del pesaje:
-            igualmente podés cargar su
-            peso.
+            “Indispuesta” funciona como contexto del pesaje: igualmente podés
+            cargar su peso.
           </p>
         </div>
 
@@ -817,9 +1241,12 @@ function Pesajes() {
 
             <tbody>
               {filteredPlayers.map(
-                (player) => {
+                (
+                  player,
+                ) => {
                   if (
-                    player.id == null
+                    player.id ==
+                    null
                   ) {
                     return null;
                   }
@@ -828,10 +1255,14 @@ function Pesajes() {
                     drafts[
                       player.id
                     ] ?? {
-                      weight: "",
+                      weight:
+                        "",
+
                       condition:
                         "normal" as WeightCondition,
-                      notes: "",
+
+                      notes:
+                        "",
                     };
 
                   const reference =
@@ -869,9 +1300,7 @@ function Pesajes() {
                       className="border-t border-border"
                     >
                       <td className="px-4 py-3 font-semibold">
-                        {
-                          player.name
-                        }
+                        {player.name}
                       </td>
 
                       <td className="px-4 py-2 text-right">
@@ -916,8 +1345,8 @@ function Pesajes() {
 
                         {usedDifferentDate && (
                           <div className="mt-1 text-[10px] text-muted-foreground">
-                            más cercano
-                            a{" "}
+                            más cercano a{" "}
+
                             {fmtDate(
                               referenceDate,
                             )}
@@ -970,9 +1399,7 @@ function Pesajes() {
                                   condition.value
                                 }
                               >
-                                {
-                                  condition.label
-                                }
+                                {condition.label}
                               </option>
                             ),
                           )}
@@ -1013,89 +1440,89 @@ function Pesajes() {
           <strong>
             Cómo funciona:
           </strong>{" "}
-          podés comparar cada pesaje
-          contra el último registro de
-          cada jugadora o elegir una
-          fecha histórica como
-          referencia. Si una jugadora
-          faltó en la fecha elegida, la
-          app utiliza automáticamente
-          su medición más cercana y te
-          indica qué fecha usó.
+          podés comparar cada pesaje contra el último registro de cada jugadora
+          o elegir una fecha histórica como referencia. Si una jugadora faltó
+          en la fecha elegida, la app utiliza automáticamente su medición más
+          cercana y te indica qué fecha usó.
         </div>
       </div>
 
-    <div className="hidden print:block">
-  <div className="overflow-hidden rounded-xl border border-primary/20 bg-white">
-    <div className="border-t-[10px] border-primary bg-white px-6 py-5">
-      <div className="flex items-start justify-between gap-6">
-        <div className="flex items-start gap-4">
-          <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-lg border border-border bg-white p-2">
-            <img
-              src="/logo-san-lorenzo.png"
-              alt="Escudo de San Lorenzo"
-              className="max-h-full max-w-full object-contain"
-            />
+      <div className="hidden print:block">
+        <div className="overflow-hidden rounded-xl border border-primary/20 bg-white">
+          <div className="border-t-[10px] border-primary bg-white px-6 py-5">
+            <div className="flex items-start justify-between gap-6">
+              <div className="flex items-start gap-4">
+                <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-lg border border-border bg-white p-2">
+                  <img
+                    src="/logo-san-lorenzo.png"
+                    alt="Escudo de San Lorenzo"
+                    className="max-h-full max-w-full object-contain"
+                  />
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                    Club Atlético San Lorenzo de Almagro
+                  </p>
+
+                  <h1 className="mt-1 text-3xl font-bold uppercase text-primary">
+                    Informe de Pesajes
+                  </h1>
+
+                  <p className="mt-1 text-sm font-semibold text-accent">
+                    Primera División · Fútbol Femenino
+                  </p>
+                </div>
+              </div>
+
+              <div className="min-w-[180px] rounded-xl border border-primary/20 bg-muted/20 px-4 py-3 text-right">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Fecha del pesaje
+                </p>
+
+                <p className="mt-1 text-2xl font-bold text-primary">
+                  {fmtDate(
+                    date,
+                  )}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 h-1.5 w-full rounded-full bg-accent" />
           </div>
 
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-              Club Atlético San Lorenzo de Almagro
-            </p>
+          <div className="bg-white px-6 py-5">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Comparación utilizada
+                </p>
 
-            <h1 className="mt-1 text-3xl font-bold uppercase text-primary">
-              Informe de Pesajes
-            </h1>
+                <p className="mt-1 font-bold text-primary">
+                  {comparisonDescription}
+                </p>
+              </div>
 
-            <p className="mt-1 text-sm font-semibold text-accent">
-              Primera División · Fútbol Femenino
-            </p>
-          </div>
-        </div>
+              <div className="rounded-xl border border-primary/15 bg-muted/20 px-4 py-4 text-right">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Jugadoras incluidas
+                </p>
 
-        <div className="min-w-[180px] rounded-xl border border-primary/20 bg-muted/20 px-4 py-3 text-right">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Fecha del pesaje
-          </p>
+                <p className="mt-1 text-2xl font-bold text-primary">
+                  {reportRows.length}
+                </p>
+              </div>
+            </div>
 
-          <p className="mt-1 text-2xl font-bold text-primary">
-            {fmtDate(date)}
-          </p>
-        </div>
-      </div>
+            {comparisonMode ===
+              "date" && (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Cuando una jugadora no posee un registro exactamente en la
+                fecha seleccionada, se utiliza su pesaje más cercano disponible.
+                La fecha realmente utilizada se informa en la tabla.
+              </p>
+            )}
 
-      <div className="mt-4 h-1.5 w-full rounded-full bg-accent" />
-    </div>
-
-    <div className="bg-white px-6 py-5">
-      <div className="grid grid-cols-2 gap-4 text-sm">
-        <div className="rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Comparación utilizada
-          </p>
-
-          <p className="mt-1 font-bold text-primary">
-            {comparisonDescription}
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-primary/15 bg-muted/20 px-4 py-4 text-right">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Jugadoras incluidas
-          </p>
-
-          <p className="mt-1 text-2xl font-bold text-primary">
-            {reportRows.length}
-          </p>
-        </div>
-      </div>
-
-      {comparisonMode === "date" && (
-        <p className="mt-3 text-xs text-muted-foreground">
-          Cuando una jugadora no posee un registro exactamente en la fecha seleccionada,
-          se utiliza su pesaje más cercano disponible. La fecha realmente utilizada se informa en la tabla.
-        </p>
-      )}
             <table className="mt-5 w-full border-collapse text-xs">
               <thead>
                 <tr className="bg-primary text-primary-foreground">
@@ -1127,21 +1554,24 @@ function Pesajes() {
 
               <tbody>
                 {reportRows.map(
-                  (row, index) => (
+                  (
+                    row,
+                    index,
+                  ) => (
                     <tr
                       key={
                         row.player.id
                       }
                       className={
-                        index % 2 === 0
+                        index %
+                          2 ===
+                        0
                           ? "bg-white"
                           : "bg-muted/40"
                       }
                     >
                       <td className="border border-border px-3 py-2 font-semibold text-primary">
-                        {
-                          row.player.name
-                        }
+                        {row.player.name}
                       </td>
 
                       <td className="border border-border px-3 py-2 text-right font-semibold">
@@ -1165,6 +1595,7 @@ function Pesajes() {
                               row.reference
                                 .date,
                             )}
+
                             {row.usedDifferentDate
                               ? " *"
                               : ""}
@@ -1197,7 +1628,9 @@ function Pesajes() {
             {comparisonMode ===
               "date" &&
               reportRows.some(
-                (row) =>
+                (
+                  row,
+                ) =>
                   row.usedDifferentDate,
               ) && (
                 <p className="mt-3 text-[10px] text-muted-foreground">
