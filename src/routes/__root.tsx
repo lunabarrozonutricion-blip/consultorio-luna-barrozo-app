@@ -32,7 +32,7 @@ import {
 } from "../components/ui/sonner";
 
 const OFFLINE_CACHE_NAME =
-  "san-lorenzo-antro-v12";
+  "san-lorenzo-antro-v13";
 
 /* ============================================================
    CACHE DE RECURSOS
@@ -114,6 +114,10 @@ async function cacheLoadedAssets() {
           const response =
             await fetch(
               request,
+              {
+                cache:
+                  "no-store",
+              },
             );
 
           if (
