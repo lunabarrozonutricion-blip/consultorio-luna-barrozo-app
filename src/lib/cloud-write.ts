@@ -16,26 +16,24 @@ type PlayerProfile = Player & {
 };
 
 /* ============================================================
-   USUARIO / SESIÓN
+   SESIÓN
 ============================================================ */
 
-async function getOwnerId() {
+async function requireOwnerId() {
   if (!supabase) {
-    return null;
+    throw new Error(
+      "Supabase no está configurado.",
+    );
   }
 
-  /*
-   * Si estamos sin internet dejamos trabajar
-   * con IndexedDB.
-   *
-   * Más adelante vamos a agregar la cola offline
-   * para enviar esos cambios al recuperar conexión.
-   */
   if (
-    typeof navigator !== "undefined" &&
+    typeof navigator !==
+      "undefined" &&
     !navigator.onLine
   ) {
-    return null;
+    throw new Error(
+      "No hay conexión a internet.",
+    );
   }
 
   const {
@@ -48,10 +46,33 @@ async function getOwnerId() {
     throw error;
   }
 
-  return (
-    data.session?.user.id ??
-    null
-  );
+  const ownerId =
+    data.session?.user.id;
+
+  if (!ownerId) {
+    throw new Error(
+      "No hay una sesión iniciada.",
+    );
+  }
+
+  return ownerId;
+}
+
+function requireReturnedId(
+  id: unknown,
+) {
+  const value =
+    Number(id);
+
+  if (
+    !Number.isFinite(value)
+  ) {
+    throw new Error(
+      "Supabase no devolvió un ID válido.",
+    );
+  }
+
+  return value;
 }
 
 /* ============================================================
@@ -61,80 +82,120 @@ async function getOwnerId() {
 export async function cloudUpsertPlayer(
   player: PlayerProfile,
 ) {
-  if (player.id == null) {
+  const ownerId =
+    await requireOwnerId();
+
+  if (!supabase) {
     throw new Error(
-      "La jugadora debe tener un ID local antes de sincronizarse.",
+      "Supabase no está disponible.",
     );
   }
 
-  const ownerId =
-    await getOwnerId();
+  const payload = {
+    owner_id:
+      ownerId,
 
-  if (!ownerId || !supabase) {
-    return;
+    name:
+      player.name,
+
+    position:
+      player.position ??
+      null,
+
+    birth_date:
+      player.birthDate ??
+      null,
+
+    phone:
+      player.phone ??
+      null,
+
+    email:
+      player.email ??
+      null,
+
+    general_notes:
+      player.generalNotes ??
+      null,
+
+    active:
+      player.active,
+
+    created_at:
+      player.createdAt,
+
+    updated_at:
+      player.updatedAt,
+  };
+
+  /*
+   * NUEVA JUGADORA:
+   * Supabase genera el ID.
+   */
+  if (player.id == null) {
+    const {
+      data,
+      error,
+    } =
+      await supabase
+        .from("players")
+        .insert(payload)
+        .select("id")
+        .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return requireReturnedId(
+      data.id,
+    );
   }
 
+  /*
+   * JUGADORA EXISTENTE:
+   * el ID ya es el ID real de Supabase.
+   */
   const {
+    data,
     error,
   } =
     await supabase
       .from("players")
-      .upsert(
-        {
-          id: player.id,
-
-          owner_id:
-            ownerId,
-
-          name:
-            player.name,
-
-          position:
-            player.position ??
-            null,
-
-          birth_date:
-            player.birthDate ??
-            null,
-
-          phone:
-            player.phone ??
-            null,
-
-          email:
-            player.email ??
-            null,
-
-          general_notes:
-            player.generalNotes ??
-            null,
-
-          active:
-            player.active,
-
-          created_at:
-            player.createdAt,
-
-          updated_at:
-            player.updatedAt,
-        },
-        {
-          onConflict: "id",
-        },
-      );
+      .update(payload)
+      .eq(
+        "id",
+        player.id,
+      )
+      .eq(
+        "owner_id",
+        ownerId,
+      )
+      .select("id")
+      .maybeSingle();
 
   if (error) {
     throw error;
   }
+
+  if (!data) {
+    throw new Error(
+      "La jugadora no existe en Supabase.",
+    );
+  }
+
+  return requireReturnedId(
+    data.id,
+  );
 }
 
 export async function cloudDeletePlayer(
   id: number,
 ) {
   const ownerId =
-    await getOwnerId();
+    await requireOwnerId();
 
-  if (!ownerId || !supabase) {
+  if (!supabase) {
     return;
   }
 
@@ -162,93 +223,125 @@ export async function cloudDeletePlayer(
 export async function cloudUpsertControl(
   control: Control,
 ) {
-  if (control.id == null) {
+  const ownerId =
+    await requireOwnerId();
+
+  if (!supabase) {
     throw new Error(
-      "El control debe tener un ID local antes de sincronizarse.",
+      "Supabase no está disponible.",
     );
   }
 
-  const ownerId =
-    await getOwnerId();
+  const payload = {
+    owner_id:
+      ownerId,
 
-  if (!ownerId || !supabase) {
-    return;
+    player_id:
+      control.playerId,
+
+    date:
+      control.date,
+
+    weight:
+      control.weight,
+
+    triceps:
+      control.triceps,
+
+    subscapular:
+      control.subscapular,
+
+    supraespinal:
+      control.supraespinal,
+
+    abdominal:
+      control.abdominal,
+
+    thigh_skinfold:
+      control.thighSkinfold,
+
+    calf_skinfold:
+      control.calfSkinfold,
+
+    arm_perimeter:
+      control.armPerimeter,
+
+    thigh_perimeter:
+      control.thighPerimeter,
+
+    calf_perimeter:
+      control.calfPerimeter,
+
+    notes:
+      control.notes,
+
+    created_at:
+      control.createdAt,
+
+    updated_at:
+      control.updatedAt,
+  };
+
+  if (control.id == null) {
+    const {
+      data,
+      error,
+    } =
+      await supabase
+        .from("controls")
+        .insert(payload)
+        .select("id")
+        .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return requireReturnedId(
+      data.id,
+    );
   }
 
   const {
+    data,
     error,
   } =
     await supabase
       .from("controls")
-      .upsert(
-        {
-          id: control.id,
-
-          owner_id:
-            ownerId,
-
-          player_id:
-            control.playerId,
-
-          date:
-            control.date,
-
-          weight:
-            control.weight,
-
-          triceps:
-            control.triceps,
-
-          subscapular:
-            control.subscapular,
-
-          supraespinal:
-            control.supraespinal,
-
-          abdominal:
-            control.abdominal,
-
-          thigh_skinfold:
-            control.thighSkinfold,
-
-          calf_skinfold:
-            control.calfSkinfold,
-
-          arm_perimeter:
-            control.armPerimeter,
-
-          thigh_perimeter:
-            control.thighPerimeter,
-
-          calf_perimeter:
-            control.calfPerimeter,
-
-          notes:
-            control.notes,
-
-          created_at:
-            control.createdAt,
-
-          updated_at:
-            control.updatedAt,
-        },
-        {
-          onConflict: "id",
-        },
-      );
+      .update(payload)
+      .eq(
+        "id",
+        control.id,
+      )
+      .eq(
+        "owner_id",
+        ownerId,
+      )
+      .select("id")
+      .maybeSingle();
 
   if (error) {
     throw error;
   }
+
+  if (!data) {
+    throw new Error(
+      "El control no existe en Supabase.",
+    );
+  }
+
+  return requireReturnedId(
+    data.id,
+  );
 }
 
 export async function cloudDeleteControl(
   id: number,
 ) {
   const ownerId =
-    await getOwnerId();
+    await requireOwnerId();
 
-  if (!ownerId || !supabase) {
+  if (!supabase) {
     return;
   }
 
@@ -276,69 +369,111 @@ export async function cloudDeleteControl(
 export async function cloudUpsertWeightRecord(
   record: WeightRecord,
 ) {
-  if (record.id == null) {
+  const ownerId =
+    await requireOwnerId();
+
+  if (!supabase) {
     throw new Error(
-      "El pesaje debe tener un ID local antes de sincronizarse.",
+      "Supabase no está disponible.",
     );
   }
 
-  const ownerId =
-    await getOwnerId();
+  const payload = {
+    owner_id:
+      ownerId,
 
-  if (!ownerId || !supabase) {
-    return;
+    player_id:
+      record.playerId,
+
+    date:
+      record.date,
+
+    weight:
+      record.weight,
+
+    condition:
+      record.condition,
+
+    notes:
+      record.notes,
+
+    created_at:
+      record.createdAt,
+
+    updated_at:
+      record.updatedAt,
+  };
+
+  /*
+   * NUEVO PESAJE.
+   */
+  if (record.id == null) {
+    const {
+      data,
+      error,
+    } =
+      await supabase
+        .from(
+          "weight_records",
+        )
+        .insert(payload)
+        .select("id")
+        .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return requireReturnedId(
+      data.id,
+    );
   }
 
+  /*
+   * PESAJE EXISTENTE.
+   */
   const {
+    data,
     error,
   } =
     await supabase
-      .from("weight_records")
-      .upsert(
-        {
-          id: record.id,
-
-          owner_id:
-            ownerId,
-
-          player_id:
-            record.playerId,
-
-          date:
-            record.date,
-
-          weight:
-            record.weight,
-
-          condition:
-            record.condition,
-
-          notes:
-            record.notes,
-
-          created_at:
-            record.createdAt,
-
-          updated_at:
-            record.updatedAt,
-        },
-        {
-          onConflict: "id",
-        },
-      );
+      .from(
+        "weight_records",
+      )
+      .update(payload)
+      .eq(
+        "id",
+        record.id,
+      )
+      .eq(
+        "owner_id",
+        ownerId,
+      )
+      .select("id")
+      .maybeSingle();
 
   if (error) {
     throw error;
   }
+
+  if (!data) {
+    throw new Error(
+      "El pesaje no existe en Supabase.",
+    );
+  }
+
+  return requireReturnedId(
+    data.id,
+  );
 }
 
 export async function cloudDeleteWeightRecord(
   id: number,
 ) {
   const ownerId =
-    await getOwnerId();
+    await requireOwnerId();
 
-  if (!ownerId || !supabase) {
+  if (!supabase) {
     return;
   }
 
@@ -346,7 +481,9 @@ export async function cloudDeleteWeightRecord(
     error,
   } =
     await supabase
-      .from("weight_records")
+      .from(
+        "weight_records",
+      )
       .delete()
       .eq("id", id)
       .eq(
@@ -366,62 +503,96 @@ export async function cloudDeleteWeightRecord(
 export async function cloudUpsertObjectivePeriod(
   period: ObjectivePeriod,
 ) {
-  if (period.id == null) {
+  const ownerId =
+    await requireOwnerId();
+
+  if (!supabase) {
     throw new Error(
-      "El período debe tener un ID local antes de sincronizarse.",
+      "Supabase no está disponible.",
     );
   }
 
-  const ownerId =
-    await getOwnerId();
+  const payload = {
+    owner_id:
+      ownerId,
 
-  if (!ownerId || !supabase) {
-    return;
+    key:
+      period.key,
+
+    label:
+      period.label,
+
+    year:
+      period.year,
+
+    month:
+      period.month,
+
+    targets:
+      period.targets,
+
+    created_at:
+      period.createdAt,
+
+    updated_at:
+      period.updatedAt,
+  };
+
+  if (period.id == null) {
+    const {
+      data,
+      error,
+    } =
+      await supabase
+        .from(
+          "objective_periods",
+        )
+        .insert(payload)
+        .select("id")
+        .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return requireReturnedId(
+      data.id,
+    );
   }
 
   const {
+    data,
     error,
   } =
     await supabase
       .from(
         "objective_periods",
       )
-      .upsert(
-        {
-          id: period.id,
-
-          owner_id:
-            ownerId,
-
-          key:
-            period.key,
-
-          label:
-            period.label,
-
-          year:
-            period.year,
-
-          month:
-            period.month,
-
-          targets:
-            period.targets,
-
-          created_at:
-            period.createdAt,
-
-          updated_at:
-            period.updatedAt,
-        },
-        {
-          onConflict: "id",
-        },
-      );
+      .update(payload)
+      .eq(
+        "id",
+        period.id,
+      )
+      .eq(
+        "owner_id",
+        ownerId,
+      )
+      .select("id")
+      .maybeSingle();
 
   if (error) {
     throw error;
   }
+
+  if (!data) {
+    throw new Error(
+      "El período de objetivos no existe en Supabase.",
+    );
+  }
+
+  return requireReturnedId(
+    data.id,
+  );
 }
 
 /* ============================================================
@@ -431,16 +602,111 @@ export async function cloudUpsertObjectivePeriod(
 export async function cloudUpsertHydrationTest(
   test: HydrationTest,
 ) {
-  if (test.id == null) {
+  const ownerId =
+    await requireOwnerId();
+
+  if (!supabase) {
     throw new Error(
-      "El test debe tener un ID local antes de sincronizarse.",
+      "Supabase no está disponible.",
     );
   }
 
-  const ownerId =
-    await getOwnerId();
+  const payload = {
+    owner_id:
+      ownerId,
 
-  if (!ownerId || !supabase) {
+    date:
+      test.date,
+
+    round:
+      test.round,
+
+    rival:
+      test.rival,
+
+    day_type:
+      test.dayType,
+
+    context:
+      test.context,
+
+    custom_context:
+      test.customContext,
+
+    entries:
+      test.entries,
+
+    created_at:
+      test.createdAt,
+
+    updated_at:
+      test.updatedAt,
+  };
+
+  if (test.id == null) {
+    const {
+      data,
+      error,
+    } =
+      await supabase
+        .from(
+          "hydration_tests",
+        )
+        .insert(payload)
+        .select("id")
+        .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return requireReturnedId(
+      data.id,
+    );
+  }
+
+  const {
+    data,
+    error,
+  } =
+    await supabase
+      .from(
+        "hydration_tests",
+      )
+      .update(payload)
+      .eq(
+        "id",
+        test.id,
+      )
+      .eq(
+        "owner_id",
+        ownerId,
+      )
+      .select("id")
+      .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    throw new Error(
+      "El test de hidratación no existe en Supabase.",
+    );
+  }
+
+  return requireReturnedId(
+    data.id,
+  );
+}
+
+export async function cloudDeleteHydrationTest(
+  id: number,
+) {
+  const ownerId =
+    await requireOwnerId();
+
+  if (!supabase) {
     return;
   }
 
@@ -451,65 +717,6 @@ export async function cloudUpsertHydrationTest(
       .from(
         "hydration_tests",
       )
-      .upsert(
-        {
-          id: test.id,
-
-          owner_id:
-            ownerId,
-
-          date:
-            test.date,
-
-          round:
-            test.round,
-
-          rival:
-            test.rival,
-
-          day_type:
-            test.dayType,
-
-          context:
-            test.context,
-
-          custom_context:
-            test.customContext,
-
-          entries:
-            test.entries,
-
-          created_at:
-            test.createdAt,
-
-          updated_at:
-            test.updatedAt,
-        },
-        {
-          onConflict: "id",
-        },
-      );
-
-  if (error) {
-    throw error;
-  }
-}
-
-export async function cloudDeleteHydrationTest(
-  id: number,
-) {
-  const ownerId =
-    await getOwnerId();
-
-  if (!ownerId || !supabase) {
-    return;
-  }
-
-  const {
-    error,
-  } =
-    await supabase
-      .from("hydration_tests")
       .delete()
       .eq("id", id)
       .eq(
@@ -529,113 +736,146 @@ export async function cloudDeleteHydrationTest(
 export async function cloudUpsertFullAnthropometry(
   anthropometry: FullAnthropometry,
 ) {
-  if (
-    anthropometry.id == null
-  ) {
+  const ownerId =
+    await requireOwnerId();
+
+  if (!supabase) {
     throw new Error(
-      "La antropometría debe tener un ID local antes de sincronizarse.",
+      "Supabase no está disponible.",
     );
   }
 
-  const ownerId =
-    await getOwnerId();
+  const payload = {
+    owner_id:
+      ownerId,
 
-  if (!ownerId || !supabase) {
-    return;
+    player_id:
+      anthropometry.playerId,
+
+    date:
+      anthropometry.date,
+
+    measurement_number:
+      anthropometry.measurementNumber,
+
+    sport:
+      anthropometry.sport,
+
+    physical_activity:
+      anthropometry.physicalActivity,
+
+    activity_type:
+      anthropometry.activityType,
+
+    sex:
+      anthropometry.sex,
+
+    birth_date:
+      anthropometry.birthDate,
+
+    age_years:
+      anthropometry.ageYears,
+
+    measures:
+      anthropometry.measures,
+
+    bone_reference_kg:
+      anthropometry.boneReferenceKg,
+
+    results:
+      anthropometry.results,
+
+    linked_control_id:
+      anthropometry.linkedControlId,
+
+    source:
+      anthropometry.source,
+
+    source_file_name:
+      anthropometry.sourceFileName,
+
+    source_sheet_name:
+      anthropometry.sourceSheetName,
+
+    source_player_name:
+      anthropometry.sourcePlayerName,
+
+    notes:
+      anthropometry.notes,
+
+    created_at:
+      anthropometry.createdAt,
+
+    updated_at:
+      anthropometry.updatedAt,
+  };
+
+  if (
+    anthropometry.id == null
+  ) {
+    const {
+      data,
+      error,
+    } =
+      await supabase
+        .from(
+          "full_anthropometries",
+        )
+        .insert(payload)
+        .select("id")
+        .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return requireReturnedId(
+      data.id,
+    );
   }
 
   const {
+    data,
     error,
   } =
     await supabase
       .from(
         "full_anthropometries",
       )
-      .upsert(
-        {
-          id:
-            anthropometry.id,
-
-          owner_id:
-            ownerId,
-
-          player_id:
-            anthropometry.playerId,
-
-          date:
-            anthropometry.date,
-
-          measurement_number:
-            anthropometry.measurementNumber,
-
-          sport:
-            anthropometry.sport,
-
-          physical_activity:
-            anthropometry.physicalActivity,
-
-          activity_type:
-            anthropometry.activityType,
-
-          sex:
-            anthropometry.sex,
-
-          birth_date:
-            anthropometry.birthDate,
-
-          age_years:
-            anthropometry.ageYears,
-
-          measures:
-            anthropometry.measures,
-
-          bone_reference_kg:
-            anthropometry.boneReferenceKg,
-
-          results:
-            anthropometry.results,
-
-          linked_control_id:
-            anthropometry.linkedControlId,
-
-          source:
-            anthropometry.source,
-
-          source_file_name:
-            anthropometry.sourceFileName,
-
-          source_sheet_name:
-            anthropometry.sourceSheetName,
-
-          source_player_name:
-            anthropometry.sourcePlayerName,
-
-          notes:
-            anthropometry.notes,
-
-          created_at:
-            anthropometry.createdAt,
-
-          updated_at:
-            anthropometry.updatedAt,
-        },
-        {
-          onConflict: "id",
-        },
-      );
+      .update(payload)
+      .eq(
+        "id",
+        anthropometry.id,
+      )
+      .eq(
+        "owner_id",
+        ownerId,
+      )
+      .select("id")
+      .maybeSingle();
 
   if (error) {
     throw error;
   }
+
+  if (!data) {
+    throw new Error(
+      "La antropometría no existe en Supabase.",
+    );
+  }
+
+  return requireReturnedId(
+    data.id,
+  );
 }
 
 export async function cloudDeleteFullAnthropometry(
   id: number,
 ) {
   const ownerId =
-    await getOwnerId();
+    await requireOwnerId();
 
-  if (!ownerId || !supabase) {
+  if (!supabase) {
     return;
   }
 
