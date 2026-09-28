@@ -108,14 +108,18 @@ let _db: AnthroDB | null = null;
 ============================================================ */
 
 export function db(): AnthroDB {
-  if (typeof window === "undefined") {
+  if (
+    typeof window ===
+    "undefined"
+  ) {
     throw new Error(
       "La base local sólo está disponible en el navegador",
     );
   }
 
   if (!_db) {
-    _db = new AnthroDB();
+    _db =
+      new AnthroDB();
   }
 
   return _db;
@@ -126,7 +130,7 @@ export function nowISO() {
 }
 
 /* ============================================================
-   CONTROL HABITUAL
+   CONTROL VACÍO
 ============================================================ */
 
 function emptyControl(
@@ -153,8 +157,11 @@ function emptyControl(
 
     notes: null,
 
-    createdAt: nowISO(),
-    updatedAt: nowISO(),
+    createdAt:
+      nowISO(),
+
+    updatedAt:
+      nowISO(),
 
     ...v,
   };
@@ -167,7 +174,9 @@ function emptyControl(
 let seeded = false;
 
 export async function ensureSeed() {
-  if (seeded) return;
+  if (seeded) {
+    return;
+  }
 
   seeded = true;
 
@@ -177,37 +186,70 @@ export async function ensureSeed() {
     await d.players.count();
 
   /*
-   * Si ya existen jugadoras reales,
-   * nunca agregamos datos de ejemplo.
+   * Si ya tenemos datos reales
+   * no agregamos ejemplos.
    */
   if (count > 0) {
     return;
   }
 
-  const players: Player[] = [
+  const players:
+    Player[] = [
     {
-      name: "Camila Rodríguez",
-      position: "Delantera",
-      birthDate: "2001-04-12",
+      name:
+        "Camila Rodríguez",
+
+      position:
+        "Delantera",
+
+      birthDate:
+        "2001-04-12",
+
       active: 1,
-      createdAt: nowISO(),
-      updatedAt: nowISO(),
+
+      createdAt:
+        nowISO(),
+
+      updatedAt:
+        nowISO(),
     },
+
     {
-      name: "Martina Gómez",
-      position: "Mediocampista",
-      birthDate: "1999-09-03",
+      name:
+        "Martina Gómez",
+
+      position:
+        "Mediocampista",
+
+      birthDate:
+        "1999-09-03",
+
       active: 1,
-      createdAt: nowISO(),
-      updatedAt: nowISO(),
+
+      createdAt:
+        nowISO(),
+
+      updatedAt:
+        nowISO(),
     },
+
     {
-      name: "Lucía Fernández",
-      position: "Defensora",
-      birthDate: "2003-01-25",
+      name:
+        "Lucía Fernández",
+
+      position:
+        "Defensora",
+
+      birthDate:
+        "2003-01-25",
+
       active: 1,
-      createdAt: nowISO(),
-      updatedAt: nowISO(),
+
+      createdAt:
+        nowISO(),
+
+      updatedAt:
+        nowISO(),
     },
   ];
 
@@ -242,6 +284,7 @@ export async function ensureSeed() {
         calfPerimeter: 34.2,
       },
     ],
+
     [
       0,
       "2026-06-08",
@@ -258,6 +301,7 @@ export async function ensureSeed() {
         calfPerimeter: 34.5,
       },
     ],
+
     [
       0,
       "2026-09-01",
@@ -268,14 +312,15 @@ export async function ensureSeed() {
         supraespinal: 7.5,
         abdominal: 13.2,
         thighSkinfold: 18.6,
-        calfSkinfold: 11.0,
+        calfSkinfold: 11,
         armPerimeter: 27.1,
-        thighPerimeter: 53.0,
+        thighPerimeter: 53,
         calfPerimeter: 34.8,
         notes:
           "Pretemporada finalizada.",
       },
     ],
+
     [
       1,
       "2026-03-11",
@@ -287,11 +332,12 @@ export async function ensureSeed() {
         abdominal: 18.6,
         thighSkinfold: 24.1,
         calfSkinfold: 14.3,
-        armPerimeter: 28.0,
+        armPerimeter: 28,
         thighPerimeter: 55.4,
         calfPerimeter: 36.1,
       },
     ],
+
     [
       1,
       "2026-06-09",
@@ -301,13 +347,14 @@ export async function ensureSeed() {
         subscapular: 11.8,
         supraespinal: 9.6,
         abdominal: 17.4,
-        thighSkinfold: 23.0,
+        thighSkinfold: 23,
         calfSkinfold: 13.8,
         armPerimeter: 28.3,
         thighPerimeter: 55.7,
         calfPerimeter: 36.3,
       },
     ],
+
     [
       2,
       "2026-03-12",
@@ -324,6 +371,7 @@ export async function ensureSeed() {
         calfPerimeter: 33.1,
       },
     ],
+
     [
       2,
       "2026-08-20",
@@ -331,8 +379,8 @@ export async function ensureSeed() {
         weight: 55.8,
         triceps: 12.4,
         subscapular: 9.1,
-        supraespinal: 7.0,
-        abdominal: 12.0,
+        supraespinal: 7,
+        abdominal: 12,
         thighSkinfold: 17.4,
         calfSkinfold: 10.2,
         armPerimeter: 25.6,
@@ -344,11 +392,15 @@ export async function ensureSeed() {
 
   await d.controls.bulkAdd(
     samples.map(
-      ([i, date, v]) =>
+      ([
+        i,
+        date,
+        values,
+      ]) =>
         emptyControl(
           ids[i] as number,
           date,
-          v,
+          values,
         ),
     ),
   );
@@ -358,77 +410,112 @@ export async function ensureSeed() {
    CONTROLES
 ============================================================ */
 
-export async function deleteControl(
-  id: number,
-) {
-  await db()
-    .controls
-    .delete(id);
-
-  await cloudDeleteControl(
-    id,
-  );
-}
-
 export async function upsertControl(
   c: Control,
 ) {
   const d = db();
 
-  /* ===========================
-     EDITAR
-  =========================== */
+  const timestamp =
+    nowISO();
 
+  /*
+   * CONTROL EXISTENTE
+   */
   if (c.id != null) {
     const updated:
       Control = {
       ...c,
+
       updatedAt:
-        nowISO(),
+        timestamp,
     };
 
-    await d.controls.update(
-      c.id,
-      updated,
+    /*
+     * Primero confirmamos nube.
+     */
+    const cloudId =
+      await cloudUpsertControl(
+        updated,
+      );
+
+    /*
+     * Después actualizamos local.
+     */
+    const finalRecord:
+      Control = {
+      ...updated,
+
+      id:
+        cloudId,
+    };
+
+    await d.controls.put(
+      finalRecord,
     );
 
-    await cloudUpsertControl(
-      updated,
-    );
-
-    return c.id;
+    return cloudId;
   }
 
-  /* ===========================
-     CREAR
-  =========================== */
-
+  /*
+   * CONTROL NUEVO
+   *
+   * No generamos primero un ID
+   * local.
+   *
+   * Supabase genera el identificador.
+   */
   const created:
     Control = {
     ...c,
+
+    id:
+      undefined,
+
     createdAt:
-      nowISO(),
+      c.createdAt ||
+      timestamp,
+
     updatedAt:
-      nowISO(),
+      timestamp,
   };
 
-  const id =
-    await d.controls.add(
+  const cloudId =
+    await cloudUpsertControl(
       created,
     );
 
   const finalRecord:
     Control = {
     ...created,
+
     id:
-      Number(id),
+      cloudId,
   };
 
-  await cloudUpsertControl(
+  await d.controls.put(
     finalRecord,
   );
 
-  return Number(id);
+  return cloudId;
+}
+
+export async function deleteControl(
+  id: number,
+) {
+  /*
+   * Primero borramos en nube.
+   */
+  await cloudDeleteControl(
+    id,
+  );
+
+  /*
+   * Sólo si funcionó,
+   * borramos la copia local.
+   */
+  await db()
+    .controls
+    .delete(id);
 }
 
 /* ============================================================
@@ -440,72 +527,99 @@ export async function upsertWeightRecord(
 ) {
   const d = db();
 
-  /* ===========================
-     EDITAR
-  =========================== */
+  const timestamp =
+    nowISO();
 
-  if (record.id != null) {
+  /*
+   * PESAJE EXISTENTE
+   */
+  if (
+    record.id !=
+    null
+  ) {
     const updated:
       WeightRecord = {
       ...record,
+
       updatedAt:
-        nowISO(),
+        timestamp,
     };
 
-    await d.weightRecords.update(
-      record.id,
-      updated,
+    const cloudId =
+      await cloudUpsertWeightRecord(
+        updated,
+      );
+
+    const finalRecord:
+      WeightRecord = {
+      ...updated,
+
+      id:
+        cloudId,
+    };
+
+    await d.weightRecords.put(
+      finalRecord,
     );
 
-    await cloudUpsertWeightRecord(
-      updated,
-    );
-
-    return record.id;
+    return cloudId;
   }
 
-  /* ===========================
-     CREAR
-  =========================== */
-
+  /*
+   * PESAJE NUEVO
+   */
   const created:
     WeightRecord = {
     ...record,
+
+    id:
+      undefined,
+
     createdAt:
-      nowISO(),
+      record.createdAt ||
+      timestamp,
+
     updatedAt:
-      nowISO(),
+      timestamp,
   };
 
-  const id =
-    await d.weightRecords.add(
+  /*
+   * Supabase genera el ID.
+   */
+  const cloudId =
+    await cloudUpsertWeightRecord(
       created,
     );
 
+  /*
+   * IndexedDB guarda exactamente
+   * ese mismo ID.
+   */
   const finalRecord:
     WeightRecord = {
     ...created,
+
     id:
-      Number(id),
+      cloudId,
   };
 
-  await cloudUpsertWeightRecord(
+  await d.weightRecords.put(
     finalRecord,
   );
 
-  return Number(id);
+  return cloudId;
 }
 
 export async function deleteWeightRecord(
   id: number,
 ) {
-  await db()
-    .weightRecords
-    .delete(id);
-
   await cloudDeleteWeightRecord(
     id,
   );
+
+  await db()
+    .weightRecords
+    .delete(id);
 }
 
 /* ============================================================
@@ -517,60 +631,77 @@ export async function upsertPlayer(
 ) {
   const d = db();
 
-  /* ===========================
-     EDITAR
-  =========================== */
+  const timestamp =
+    nowISO();
 
+  /*
+   * JUGADORA EXISTENTE
+   */
   if (p.id != null) {
     const updated:
       PlayerProfile = {
       ...p,
+
       updatedAt:
-        nowISO(),
+        timestamp,
     };
 
-    await d.players.update(
-      p.id,
-      updated,
+    const cloudId =
+      await cloudUpsertPlayer(
+        updated,
+      );
+
+    const finalRecord:
+      PlayerProfile = {
+      ...updated,
+
+      id:
+        cloudId,
+    };
+
+    await d.players.put(
+      finalRecord,
     );
 
-    await cloudUpsertPlayer(
-      updated,
-    );
-
-    return p.id;
+    return cloudId;
   }
 
-  /* ===========================
-     CREAR
-  =========================== */
-
+  /*
+   * JUGADORA NUEVA
+   */
   const created:
     PlayerProfile = {
     ...p,
+
+    id:
+      undefined,
+
     createdAt:
-      nowISO(),
+      p.createdAt ||
+      timestamp,
+
     updatedAt:
-      nowISO(),
+      timestamp,
   };
 
-  const id =
-    await d.players.add(
+  const cloudId =
+    await cloudUpsertPlayer(
       created,
     );
 
   const finalRecord:
     PlayerProfile = {
     ...created,
+
     id:
-      Number(id),
+      cloudId,
   };
 
-  await cloudUpsertPlayer(
+  await d.players.put(
     finalRecord,
   );
 
-  return Number(id);
+  return cloudId;
 }
 
 export async function deletePlayer(
@@ -579,18 +710,25 @@ export async function deletePlayer(
   const d = db();
 
   /*
-   * Conservamos el comportamiento
-   * que ya tenía la app:
+   * Primero Supabase.
    *
-   * al borrar una jugadora localmente
-   * eliminamos sus controles y sus
-   * antropometrías completas.
+   * Si la nube rechaza la operación,
+   * no tocamos los datos locales.
+   */
+  await cloudDeletePlayer(
+    id,
+  );
+
+  /*
+   * Después limpiamos la copia local.
    */
   await d.transaction(
     "rw",
+
     d.players,
     d.controls,
     d.fullAnthropometries,
+
     async () => {
       await d.controls
         .where(
@@ -611,10 +749,6 @@ export async function deletePlayer(
       );
     },
   );
-
-  await cloudDeletePlayer(
-    id,
-  );
 }
 
 /* ============================================================
@@ -626,60 +760,80 @@ export async function upsertObjectivePeriod(
 ) {
   const d = db();
 
-  /* ===========================
-     EDITAR
-  =========================== */
+  const timestamp =
+    nowISO();
 
-  if (period.id != null) {
+  /*
+   * PERÍODO EXISTENTE
+   */
+  if (
+    period.id !=
+    null
+  ) {
     const updated:
       ObjectivePeriod = {
       ...period,
+
       updatedAt:
-        nowISO(),
+        timestamp,
     };
 
-    await d.objectivePeriods.update(
-      period.id,
-      updated,
+    const cloudId =
+      await cloudUpsertObjectivePeriod(
+        updated,
+      );
+
+    const finalRecord:
+      ObjectivePeriod = {
+      ...updated,
+
+      id:
+        cloudId,
+    };
+
+    await d.objectivePeriods.put(
+      finalRecord,
     );
 
-    await cloudUpsertObjectivePeriod(
-      updated,
-    );
-
-    return period.id;
+    return cloudId;
   }
 
-  /* ===========================
-     CREAR
-  =========================== */
-
+  /*
+   * PERÍODO NUEVO
+   */
   const created:
     ObjectivePeriod = {
     ...period,
+
+    id:
+      undefined,
+
     createdAt:
-      nowISO(),
+      period.createdAt ||
+      timestamp,
+
     updatedAt:
-      nowISO(),
+      timestamp,
   };
 
-  const id =
-    await d.objectivePeriods.add(
+  const cloudId =
+    await cloudUpsertObjectivePeriod(
       created,
     );
 
   const finalRecord:
     ObjectivePeriod = {
     ...created,
+
     id:
-      Number(id),
+      cloudId,
   };
 
-  await cloudUpsertObjectivePeriod(
+  await d.objectivePeriods.put(
     finalRecord,
   );
 
-  return Number(id);
+  return cloudId;
 }
 
 /* ============================================================
@@ -691,387 +845,372 @@ export async function upsertHydrationTest(
 ) {
   const d = db();
 
-  /* ===========================
-     EDITAR
-  =========================== */
+  const timestamp =
+    nowISO();
 
-  if (test.id != null) {
+  /*
+   * TEST EXISTENTE
+   */
+  if (
+    test.id !=
+    null
+  ) {
     const updated:
       HydrationTest = {
       ...test,
+
       updatedAt:
-        nowISO(),
+        timestamp,
     };
 
-    await d.hydrationTests.update(
-      test.id,
-      updated,
+    const cloudId =
+      await cloudUpsertHydrationTest(
+        updated,
+      );
+
+    const finalRecord:
+      HydrationTest = {
+      ...updated,
+
+      id:
+        cloudId,
+    };
+
+    await d.hydrationTests.put(
+      finalRecord,
     );
 
-    await cloudUpsertHydrationTest(
-      updated,
-    );
-
-    return test.id;
+    return cloudId;
   }
 
-  /* ===========================
-     CREAR
-  =========================== */
-
+  /*
+   * TEST NUEVO
+   */
   const created:
     HydrationTest = {
     ...test,
+
+    id:
+      undefined,
+
     createdAt:
-      nowISO(),
+      test.createdAt ||
+      timestamp,
+
     updatedAt:
-      nowISO(),
+      timestamp,
   };
 
-  const id =
-    await d.hydrationTests.add(
+  const cloudId =
+    await cloudUpsertHydrationTest(
       created,
     );
 
   const finalRecord:
     HydrationTest = {
     ...created,
+
     id:
-      Number(id),
+      cloudId,
   };
 
-  await cloudUpsertHydrationTest(
+  await d.hydrationTests.put(
     finalRecord,
   );
 
-  return Number(id);
+  return cloudId;
 }
 
 export async function deleteHydrationTest(
   id: number,
 ) {
-  await db()
-    .hydrationTests
-    .delete(id);
-
   await cloudDeleteHydrationTest(
     id,
   );
+
+  await db()
+    .hydrationTests
+    .delete(id);
 }
 
 /* ============================================================
    ANTROPOMETRÍAS COMPLETAS
-   5 COMPONENTES / KERR / ANTROPOGIMS
+   5 COMPONENTES / KERR
 ============================================================ */
 
-/*
- * Una antropometría completa también
- * crea o actualiza automáticamente
- * el control habitual correspondiente.
- *
- * IMPORTANTE:
- *
- * primero terminamos toda la transacción
- * de IndexedDB.
- *
- * Recién después sincronizamos con
- * Supabase.
- *
- * Nunca esperamos una llamada de red
- * dentro de una transacción de Dexie.
- */
 export async function upsertFullAnthropometry(
-  anthropometry: FullAnthropometry,
+  anthropometry:
+    FullAnthropometry,
 ) {
   const d = db();
 
-  const localResult =
-    await d.transaction(
-      "rw",
-      d.fullAnthropometries,
-      d.controls,
-      async () => {
-        const now =
-          nowISO();
+  const timestamp =
+    nowISO();
 
-        /* ====================================================
-           1. RECALCULAR RESULTADOS
-        ==================================================== */
+  /*
+   * Primero calculamos nuevamente
+   * los resultados.
+   */
+  const results =
+    calculateFiveComponents(
+      anthropometry,
+    );
 
-        const results =
-          calculateFiveComponents(
-            anthropometry,
-          );
-
-        const controlData =
-          controlDataFromFullAnthropometry(
-            anthropometry,
-          );
-
-        /* ====================================================
-           2. BUSCAR CONTROL HABITUAL
-        ==================================================== */
-
-        let existingControl:
-          | Control
-          | undefined;
-
-        /*
-         * Primero intentamos usar el vínculo
-         * previamente guardado.
-         */
-        if (
-          anthropometry.linkedControlId !=
-          null
-        ) {
-          const linked =
-            await d.controls.get(
-              anthropometry.linkedControlId,
-            );
-
-          if (
-            linked &&
-            linked.playerId ===
-              anthropometry.playerId &&
-            linked.date ===
-              anthropometry.date
-          ) {
-            existingControl =
-              linked;
-          }
-        }
-
-        /*
-         * Si no encontramos el vínculo,
-         * buscamos por jugadora + fecha.
-         */
-        if (!existingControl) {
-          existingControl =
-            await d.controls
-              .where(
-                "[playerId+date]",
-              )
-              .equals([
-                anthropometry.playerId,
-                anthropometry.date,
-              ])
-              .first();
-        }
-
-        /* ====================================================
-           3. CREAR O ACTUALIZAR CONTROL
-        ==================================================== */
-
-        let controlToSync:
-          Control;
-
-        if (
-          existingControl?.id !=
-          null
-        ) {
-          /*
-           * Conservamos notas y fecha de
-           * creación del control existente.
-           */
-          controlToSync = {
-            ...existingControl,
-            ...controlData,
-
-            id:
-              existingControl.id,
-
-            updatedAt:
-              now,
-          };
-
-          await d.controls.update(
-            existingControl.id,
-            controlToSync,
-          );
-        } else {
-          const newControl:
-            Control = {
-            playerId:
-              anthropometry.playerId,
-
-            date:
-              anthropometry.date,
-
-            ...controlData,
-
-            notes:
-              null,
-
-            createdAt:
-              now,
-
-            updatedAt:
-              now,
-          };
-
-          const addedControlId =
-            await d.controls.add(
-              newControl,
-            );
-
-          controlToSync = {
-            ...newControl,
-
-            id:
-              Number(
-                addedControlId,
-              ),
-          };
-        }
-
-        const controlId =
-          controlToSync.id!;
-
-        /* ====================================================
-           4. BUSCAR ANTROPOMETRÍA EXISTENTE
-        ==================================================== */
-
-        let existingAnthropometry:
-          | FullAnthropometry
-          | undefined;
-
-        /*
-         * Primero por ID.
-         */
-        if (
-          anthropometry.id !=
-          null
-        ) {
-          existingAnthropometry =
-            await d.fullAnthropometries.get(
-              anthropometry.id,
-            );
-        }
-
-        /*
-         * Si no aparece por ID,
-         * buscamos jugadora + fecha.
-         *
-         * Esto evita duplicados al importar
-         * dos veces el mismo archivo.
-         */
-        if (
-          !existingAnthropometry
-        ) {
-          existingAnthropometry =
-            await d.fullAnthropometries
-              .where(
-                "[playerId+date]",
-              )
-              .equals([
-                anthropometry.playerId,
-                anthropometry.date,
-              ])
-              .first();
-        }
-
-        /* ====================================================
-           5. CONSTRUIR REGISTRO FINAL
-        ==================================================== */
-
-        const finalRecord:
-          FullAnthropometry = {
-          ...anthropometry,
-
-          id:
-            existingAnthropometry
-              ?.id ??
-            anthropometry.id,
-
-          results,
-
-          linkedControlId:
-            controlId,
-
-          createdAt:
-            existingAnthropometry
-              ?.createdAt ??
-            anthropometry.createdAt ??
-            now,
-
-          updatedAt:
-            now,
-        };
-
-        /* ====================================================
-           6. GUARDAR ANTROPOMETRÍA LOCAL
-        ==================================================== */
-
-        let finalAnthropometry:
-          FullAnthropometry;
-
-        if (
-          existingAnthropometry?.id !=
-          null
-        ) {
-          const existingId =
-            existingAnthropometry.id;
-
-          await d.fullAnthropometries.update(
-            existingId,
-            {
-              ...finalRecord,
-              id:
-                existingId,
-            },
-          );
-
-          finalAnthropometry = {
-            ...finalRecord,
-            id:
-              existingId,
-          };
-        } else {
-          const newId =
-            await d.fullAnthropometries.add(
-              finalRecord,
-            );
-
-          finalAnthropometry = {
-            ...finalRecord,
-
-            id:
-              Number(newId),
-          };
-        }
-
-        return {
-          id:
-            finalAnthropometry.id!,
-
-          control:
-            controlToSync,
-
-          anthropometry:
-            finalAnthropometry,
-        };
-      },
+  const controlData =
+    controlDataFromFullAnthropometry(
+      anthropometry,
     );
 
   /* ==========================================================
-     7. SINCRONIZAR CON SUPABASE
+     1. BUSCAR CONTROL RELACIONADO
+  ========================================================== */
+
+  let existingControl:
+    | Control
+    | undefined;
+
+  /*
+   * Primero intentamos el vínculo
+   * guardado.
+   */
+  if (
+    anthropometry
+      .linkedControlId !=
+    null
+  ) {
+    const linked =
+      await d.controls.get(
+        anthropometry
+          .linkedControlId,
+      );
+
+    if (
+      linked &&
+      linked.playerId ===
+        anthropometry.playerId &&
+      linked.date ===
+        anthropometry.date
+    ) {
+      existingControl =
+        linked;
+    }
+  }
+
+  /*
+   * Si no existe vínculo,
+   * buscamos jugadora + fecha.
+   */
+  if (!existingControl) {
+    existingControl =
+      await d.controls
+        .where(
+          "[playerId+date]",
+        )
+        .equals([
+          anthropometry.playerId,
+          anthropometry.date,
+        ])
+        .first();
+  }
+
+  /* ==========================================================
+     2. PREPARAR CONTROL
+  ========================================================== */
+
+  let controlForCloud:
+    Control;
+
+  if (
+    existingControl?.id !=
+    null
+  ) {
+    /*
+     * Conservamos notas y fecha
+     * de creación existentes.
+     */
+    controlForCloud = {
+      ...existingControl,
+
+      ...controlData,
+
+      id:
+        existingControl.id,
+
+      updatedAt:
+        timestamp,
+    };
+  } else {
+    controlForCloud = {
+      playerId:
+        anthropometry.playerId,
+
+      date:
+        anthropometry.date,
+
+      ...controlData,
+
+      notes: null,
+
+      createdAt:
+        timestamp,
+
+      updatedAt:
+        timestamp,
+    };
+  }
+
+  /* ==========================================================
+     3. SUPABASE GUARDA CONTROL
+  ========================================================== */
+
+  const cloudControlId =
+    await cloudUpsertControl(
+      controlForCloud,
+    );
+
+  const finalControl:
+    Control = {
+    ...controlForCloud,
+
+    id:
+      cloudControlId,
+  };
+
+  /* ==========================================================
+     4. BUSCAR ANTROPOMETRÍA EXISTENTE
+  ========================================================== */
+
+  let existingAnthropometry:
+    | FullAnthropometry
+    | undefined;
+
+  if (
+    anthropometry.id !=
+    null
+  ) {
+    existingAnthropometry =
+      await d.fullAnthropometries.get(
+        anthropometry.id,
+      );
+  }
+
+  if (
+    !existingAnthropometry
+  ) {
+    existingAnthropometry =
+      await d.fullAnthropometries
+        .where(
+          "[playerId+date]",
+        )
+        .equals([
+          anthropometry.playerId,
+          anthropometry.date,
+        ])
+        .first();
+  }
+
+  /* ==========================================================
+     5. CONSTRUIR ANTROPOMETRÍA
+  ========================================================== */
+
+  const anthropometryForCloud:
+    FullAnthropometry = {
+    ...anthropometry,
+
+    id:
+      existingAnthropometry
+        ?.id ??
+      anthropometry.id,
+
+    results,
+
+    linkedControlId:
+      cloudControlId,
+
+    createdAt:
+      existingAnthropometry
+        ?.createdAt ??
+      anthropometry.createdAt ??
+      timestamp,
+
+    updatedAt:
+      timestamp,
+  };
+
+  /* ==========================================================
+     6. SUPABASE GUARDA ANTROPOMETRÍA
+  ========================================================== */
+
+  const cloudAnthropometryId =
+    await cloudUpsertFullAnthropometry(
+      anthropometryForCloud,
+    );
+
+  const finalAnthropometry:
+    FullAnthropometry = {
+    ...anthropometryForCloud,
+
+    id:
+      cloudAnthropometryId,
+
+    linkedControlId:
+      cloudControlId,
+  };
+
+  /* ==========================================================
+     7. ACTUALIZAR INDEXEDDB
   ========================================================== */
 
   /*
-   * Primero subimos el control.
-   *
-   * Después la antropometría, porque
-   * linkedControlId depende de ese control.
+   * Recién después de que la nube
+   * confirmó ambos registros,
+   * actualizamos la copia local.
    */
-  await cloudUpsertControl(
-    localResult.control,
+  await d.transaction(
+    "rw",
+
+    d.controls,
+    d.fullAnthropometries,
+
+    async () => {
+      /*
+       * Si por algún motivo había
+       * un ID local antiguo distinto,
+       * lo eliminamos.
+       */
+      if (
+        existingControl?.id !=
+          null &&
+        existingControl.id !==
+          cloudControlId
+      ) {
+        await d.controls.delete(
+          existingControl.id,
+        );
+      }
+
+      await d.controls.put(
+        finalControl,
+      );
+
+      if (
+        existingAnthropometry?.id !=
+          null &&
+        existingAnthropometry.id !==
+          cloudAnthropometryId
+      ) {
+        await d.fullAnthropometries.delete(
+          existingAnthropometry.id,
+        );
+      }
+
+      await d.fullAnthropometries.put(
+        finalAnthropometry,
+      );
+    },
   );
 
-  await cloudUpsertFullAnthropometry(
-    localResult.anthropometry,
-  );
-
-  return localResult.id;
+  return cloudAnthropometryId;
 }
 
 /* ============================================================
@@ -1079,22 +1218,26 @@ export async function upsertFullAnthropometry(
 ============================================================ */
 
 /*
- * Igual que antes:
- *
- * borrar una antropometría completa
- * NO borra automáticamente el control
+ * Borrar una antropometría completa
+ * no borra automáticamente el control
  * habitual asociado.
  */
 export async function deleteFullAnthropometry(
   id: number,
 ) {
-  await db()
-    .fullAnthropometries
-    .delete(id);
-
+  /*
+   * Nube primero.
+   */
   await cloudDeleteFullAnthropometry(
     id,
   );
+
+  /*
+   * Después copia local.
+   */
+  await db()
+    .fullAnthropometries
+    .delete(id);
 }
 
 /* ============================================================
