@@ -1,6 +1,10 @@
 import { db } from "./db";
 import { supabase } from "./supabase";
 
+import {
+  hasUnsyncedLocalChanges,
+} from "./sync-state";
+
 import type {
   Control,
   FullAnthropometry,
@@ -521,7 +525,7 @@ async function loadFullAnthropometries(): Promise<
 }
 
 /* ============================================================
-   ¿HAY DATOS LOCALES?
+   DATOS LOCALES
 ============================================================ */
 
 export async function hasLocalData() {
@@ -534,7 +538,7 @@ export async function hasLocalData() {
 }
 
 /* ============================================================
-   SINCRONIZAR NUBE -> DISPOSITIVO
+   SINCRONIZAR NUBE -> LOCAL
 ============================================================ */
 
 export async function syncCloudToLocal(
@@ -543,6 +547,21 @@ export async function syncCloudToLocal(
   ) => void,
 ): Promise<CloudSyncResult> {
   await requireSession();
+
+  /*
+   * PROTECCIÓN CRÍTICA.
+   *
+   * Si hubo un guardado local que no pudo
+   * llegar a Supabase, NO reemplazamos la
+   * base local por una copia vieja.
+   */
+  if (
+    hasUnsyncedLocalChanges()
+  ) {
+    throw new Error(
+      "Hay cambios guardados en este dispositivo que todavía no llegaron a Supabase. Por seguridad no se reemplazó la copia local.",
+    );
+  }
 
   onProgress?.(
     "Descargando jugadoras...",
@@ -594,13 +613,6 @@ export async function syncCloudToLocal(
     hydrationTests.length +
     fullAnthropometries.length;
 
-  /*
-   * No reemplazamos una base local existente
-   * por una nube completamente vacía.
-   *
-   * Es una protección adicional contra
-   * borrados accidentales.
-   */
   if (
     total === 0 &&
     (await hasLocalData())
@@ -627,13 +639,6 @@ export async function syncCloudToLocal(
     d.fullAnthropometries,
 
     async () => {
-      /*
-       * Desde este momento Supabase es
-       * la fuente principal.
-       *
-       * Reemplazamos el caché local por
-       * una copia exacta de la nube.
-       */
       await d.fullAnthropometries.clear();
       await d.hydrationTests.clear();
       await d.controls.clear();
