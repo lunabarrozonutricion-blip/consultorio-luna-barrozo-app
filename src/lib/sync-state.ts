@@ -94,3 +94,108 @@ export function queueUpsertOperation(
         : isNew,
     createdAt:
       previous?.createdAt ??
+      new Date().toISOString(),
+  };
+
+  const next = queue.filter(
+    (item) =>
+      !(
+        item.entity === entity &&
+        item.localId === localId
+      ),
+  );
+
+  next.push(operation);
+  writeQueue(next);
+
+  return operation.id;
+}
+
+export function queueDeleteOperation(
+  entity: SyncEntity,
+  localId: number,
+) {
+  const queue = readQueue();
+
+  const pendingNew = queue.find(
+    (operation) =>
+      operation.entity === entity &&
+      operation.localId === localId &&
+      operation.action === "upsert" &&
+      operation.isNew,
+  );
+
+  if (pendingNew) {
+    writeQueue(
+      queue.filter(
+        (operation) =>
+          !(
+            operation.entity === entity &&
+            operation.localId === localId
+          ),
+      ),
+    );
+
+    return null;
+  }
+
+  const operation: PendingSyncOperation = {
+    id: createOperationId(),
+    entity,
+    action: "delete",
+    localId,
+    isNew: false,
+    createdAt: new Date().toISOString(),
+  };
+
+  const next = queue.filter(
+    (item) =>
+      !(
+        item.entity === entity &&
+        item.localId === localId
+      ),
+  );
+
+  next.push(operation);
+  writeQueue(next);
+
+  return operation.id;
+}
+
+export function removePendingSyncOperation(
+  operationId: string,
+) {
+  writeQueue(
+    readQueue().filter(
+      (operation) =>
+        operation.id !== operationId,
+    ),
+  );
+}
+
+export function markUnsyncedLocalChanges() {
+  if (!canUseStorage()) return;
+
+  window.localStorage.setItem(
+    UNSYNCED_KEY,
+    "1",
+  );
+}
+
+export function hasUnsyncedLocalChanges() {
+  if (!canUseStorage()) return false;
+
+  return readQueue().length > 0;
+}
+
+export function clearUnsyncedLocalChanges() {
+  if (!canUseStorage()) return;
+
+  window.localStorage.removeItem(
+    QUEUE_KEY,
+  );
+
+  window.localStorage.removeItem(
+    UNSYNCED_KEY,
+  );
+}
