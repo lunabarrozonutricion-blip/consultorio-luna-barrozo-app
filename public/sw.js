@@ -1,4 +1,4 @@
-const CACHE_NAME = "san-lorenzo-antro-v12"
+const CACHE_NAME = "san-lorenzo-antro-v13"
 
 const APP_SHELL = [
   "/",
@@ -18,7 +18,7 @@ const OFFLINE_ROUTES = [
   "/comparativa",
   "/evolucion",
   "/objetivos",
-    "/seguimiento",
+  "/seguimiento",
   "/informes",
   "/plantel",
   "/datos",
@@ -304,7 +304,9 @@ self.addEventListener(
       request.mode === "navigate"
     ) {
       event.respondWith(
-        fetch(request)
+        fetch(request, {
+          cache: "no-store",
+        })
           .then((response) => {
             if (
               isCacheable(response)
@@ -354,57 +356,13 @@ self.addEventListener(
 
     if (isStaticAsset) {
       event.respondWith(
-        caches
-          .match(request)
+        fetch(request, {
+          cache: "no-store",
+        })
           .then(
             async (
-              cachedResponse,
+              response,
             ) => {
-              if (
-                cachedResponse
-              ) {
-                return cachedResponse;
-              }
-
-              const response =
-                await fetch(request);
-
-              if (
-                isCacheable(
-                  response,
-                )
-              ) {
-                const cache =
-                  await caches.open(
-                    CACHE_NAME,
-                  );
-
-                await cache.put(
-                  request,
-                  response.clone(),
-                );
-              }
-
-              return response;
-            },
-          ),
-      );
-
-      return;
-    }
-
-    const url = new URL(
-      request.url,
-    );
-
-    if (
-      url.origin ===
-      self.location.origin
-    ) {
-      event.respondWith(
-        fetch(request)
-          .then(
-            async (response) => {
               if (
                 isCacheable(
                   response,
@@ -425,7 +383,54 @@ self.addEventListener(
             },
           )
           .catch(() =>
-            caches.match(request),
+            caches.match(
+              request,
+            ),
+          ),
+      );
+
+      return;
+    }
+
+    const url = new URL(
+      request.url,
+    );
+
+    if (
+      url.origin ===
+      self.location.origin
+    ) {
+      event.respondWith(
+        fetch(request, {
+          cache: "no-store",
+        })
+          .then(
+            async (
+              response,
+            ) => {
+              if (
+                isCacheable(
+                  response,
+                )
+              ) {
+                const cache =
+                  await caches.open(
+                    CACHE_NAME,
+                  );
+
+                await cache.put(
+                  request,
+                  response.clone(),
+                );
+              }
+
+              return response;
+            },
+          )
+          .catch(() =>
+            caches.match(
+              request,
+            ),
           ),
       );
     }
