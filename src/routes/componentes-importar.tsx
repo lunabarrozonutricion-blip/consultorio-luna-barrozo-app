@@ -255,7 +255,11 @@ function ImportarAntropogims() {
     useState<ParsedAntropogims | null>(
       null,
     );
-
+const [
+  editValues,
+  setEditValues,
+] =
+  useState<Record<string, string>>({});
   const [
     parsing,
     setParsing,
@@ -378,20 +382,75 @@ function ImportarAntropogims() {
       : null;
 
   function updateImportedMeasure(
-    key: FullAnthropometryMeasureKey,
-    index: number,
-    rawValue: string,
-  ) {
-    if (!parsed) return;
+  key: FullAnthropometryMeasureKey,
+  index: number,
+  rawValue: string,
+) {
+  if (!parsed) return;
 
-    const current = parsed.measures[key];
-    const nextSeries = [...(current?.series ?? [null, null, null, null, null])] as [
-      number | null,
-      number | null,
-      number | null,
-      number | null,
-      number | null,
-    ];
+  const draftKey =
+    `${key}:${index}`;
+
+  setEditValues(
+    (previous) => ({
+      ...previous,
+      [draftKey]:
+        rawValue,
+    }),
+  );
+
+  const current =
+    parsed.measures[key];
+
+  const nextSeries = [
+    ...(current?.series ?? [
+      null,
+      null,
+      null,
+      null,
+      null,
+    ]),
+  ] as [
+    number | null,
+    number | null,
+    number | null,
+    number | null,
+    number | null,
+  ];
+
+  if (
+    rawValue.trim() === ""
+  ) {
+    nextSeries[index] =
+      null;
+  } else {
+    const parsedValue =
+      parseNum(rawValue);
+
+    if (
+      parsedValue == null
+    ) {
+      return;
+    }
+
+    nextSeries[index] =
+      parsedValue;
+  }
+
+  const nextMeasure =
+    calculateMeasureStatistics(
+      nextSeries,
+    );
+
+  setParsed({
+    ...parsed,
+    measures: {
+      ...parsed.measures,
+      [key]:
+        nextMeasure,
+    },
+  });
+}
 
     nextSeries[index] = parseNum(rawValue);
     const nextMeasure = calculateMeasureStatistics(nextSeries);
@@ -1028,7 +1087,12 @@ function ImportarAntropogims() {
                                 <td key={index} className="px-2 py-2">
                                   <Input
                                     inputMode="decimal"
-                                    value={measure?.series[index] ?? ""}
+                                    value={
+  editValues[
+    `${definition.key}:${index}`
+  ] ??
+  (measure?.series[index] ?? "")
+}
                                     onChange={(event) =>
                                       updateImportedMeasure(
                                         definition.key,
