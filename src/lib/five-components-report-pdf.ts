@@ -1433,7 +1433,7 @@ function buildSummaryCanvas(
 
   drawText(
     context,
-    "Página 1 de 2",
+    "Página 2 de 2",
     CANVAS_WIDTH -
       PAGE_MARGIN,
     1668,
@@ -1447,6 +1447,76 @@ function buildSummaryCanvas(
 
   return canvas;
 }
+
+type MeasurementGroup = {
+  label: string;
+  start: number;
+  end: number;
+  background: string;
+  border: string;
+  accent: string;
+  title: string;
+};
+
+const MEASUREMENT_GROUPS:
+  MeasurementGroup[] = [
+    {
+      label:
+        "Datos básicos",
+      start: 0,
+      end: 3,
+      background:
+        "#eff6ff",
+      border:
+        "#bfdbfe",
+      accent:
+        "#2563eb",
+      title:
+        "#1e3a8a",
+    },
+    {
+      label:
+        "Diámetros",
+      start: 3,
+      end: 9,
+      background:
+        "#f5f3ff",
+      border:
+        "#ddd6fe",
+      accent:
+        "#7c3aed",
+      title:
+        "#4c1d95",
+    },
+    {
+      label:
+        "Perímetros",
+      start: 9,
+      end: 19,
+      background:
+        "#ecfdf5",
+      border:
+        "#a7f3d0",
+      accent:
+        "#059669",
+      title:
+        "#065f46",
+    },
+    {
+      label:
+        "Pliegues cutáneos",
+      start: 19,
+      end: 25,
+      background:
+        "#fff7ed",
+      border:
+        "#fed7aa",
+      accent:
+        "#ea580c",
+      title:
+        "#9a3412",
+    },
+  ];
 
 function drawTableHeader(
   context:
@@ -1465,7 +1535,7 @@ function drawTableHeader(
     left,
     y,
     width,
-    48,
+    46,
     12,
     COLORS.navy,
   );
@@ -1487,7 +1557,7 @@ function drawTableHeader(
     context,
     "Medición",
     columns.label,
-    y + 31,
+    y + 30,
     {
       size: 15,
       weight: 700,
@@ -1500,7 +1570,7 @@ function drawTableHeader(
     context,
     "Unidad",
     columns.unit,
-    y + 31,
+    y + 30,
     {
       size: 15,
       weight: 700,
@@ -1514,7 +1584,7 @@ function drawTableHeader(
     context,
     "Actual",
     columns.current,
-    y + 31,
+    y + 30,
     {
       size: 15,
       weight: 700,
@@ -1528,7 +1598,7 @@ function drawTableHeader(
     context,
     "Anterior",
     columns.previous,
-    y + 31,
+    y + 30,
     {
       size: 15,
       weight: 700,
@@ -1542,13 +1612,63 @@ function drawTableHeader(
     context,
     "Diferencia",
     columns.difference,
-    y + 31,
+    y + 30,
     {
       size: 15,
       weight: 700,
       color:
         COLORS.white,
       align: "center",
+    },
+  );
+}
+
+function drawMeasurementGroupHeader(
+  context:
+    CanvasRenderingContext2D,
+  group:
+    MeasurementGroup,
+  y: number,
+) {
+  const left =
+    PAGE_MARGIN;
+
+  const width =
+    CANVAS_WIDTH -
+    PAGE_MARGIN * 2;
+
+  fillRoundedRect(
+    context,
+    left,
+    y,
+    width,
+    39,
+    10,
+    group.background,
+    group.border,
+    1.5,
+  );
+
+  context.fillStyle =
+    group.accent;
+
+  context.fillRect(
+    left,
+    y,
+    8,
+    39,
+  );
+
+  drawText(
+    context,
+    group.label,
+    left + 24,
+    y + 26,
+    {
+      size: 17,
+      weight: 700,
+      color:
+        group.title,
     },
   );
 }
@@ -1589,7 +1709,7 @@ function buildMeasurementsCanvas(
   );
 
   const tableTop =
-    316;
+    304;
 
   drawTableHeader(
     context,
@@ -1604,160 +1724,196 @@ function buildMeasurementsCanvas(
     PAGE_MARGIN * 2;
 
   const rowHeight =
-    51;
+    43;
 
-  input.measurements.forEach(
-    (
-      row,
-      index,
-    ) => {
-      const y =
-        tableTop +
-        55 +
-        index *
-          rowHeight;
+  const groupHeaderHeight =
+    39;
 
-      if (
-        index % 2 === 1
-      ) {
-        context.fillStyle =
-          COLORS.slate50;
+  const groupGap =
+    8;
 
-        context.fillRect(
-          left,
-          y,
-          width,
-          rowHeight,
+  let y =
+    tableTop + 54;
+
+  MEASUREMENT_GROUPS.forEach(
+    (group) => {
+      drawMeasurementGroupHeader(
+        context,
+        group,
+        y,
+      );
+
+      y +=
+        groupHeaderHeight +
+        4;
+
+      input.measurements
+        .slice(
+          group.start,
+          group.end,
+        )
+        .forEach(
+          (
+            row,
+            localIndex,
+          ) => {
+            if (
+              localIndex %
+                2 ===
+              1
+            ) {
+              context.fillStyle =
+                "#fbfdff";
+
+              context.fillRect(
+                left,
+                y,
+                width,
+                rowHeight,
+              );
+            }
+
+            context.strokeStyle =
+              COLORS.slate200;
+            context.lineWidth =
+              1;
+            context.beginPath();
+            context.moveTo(
+              left,
+              y +
+                rowHeight,
+            );
+            context.lineTo(
+              left +
+                width,
+              y +
+                rowHeight,
+            );
+            context.stroke();
+
+            context.font =
+              "700 15px Arial, sans-serif";
+
+            const label =
+              fitText(
+                context,
+                row.label,
+                470,
+              );
+
+            drawText(
+              context,
+              label,
+              left + 20,
+              y + 28,
+              {
+                size: 15,
+                weight: 700,
+                color:
+                  COLORS.slate800,
+              },
+            );
+
+            drawText(
+              context,
+              row.unit,
+              left + 590,
+              y + 28,
+              {
+                size: 14,
+                color:
+                  COLORS.slate500,
+                align:
+                  "center",
+              },
+            );
+
+            drawText(
+              context,
+              row.current !=
+                null
+                ? numberText(
+                    row.current,
+                    2,
+                  )
+                : "—",
+              left + 760,
+              y + 28,
+              {
+                size: 15,
+                weight: 700,
+                align:
+                  "center",
+              },
+            );
+
+            drawText(
+              context,
+              row.previous !=
+                null
+                ? numberText(
+                    row.previous,
+                    2,
+                  )
+                : "—",
+              left + 920,
+              y + 28,
+              {
+                size: 15,
+                color:
+                  COLORS.slate600,
+                align:
+                  "center",
+              },
+            );
+
+            const differenceColor =
+              row.difference ==
+                null ||
+              row.difference ===
+                0
+                ? COLORS.slate700
+                : row.difference >
+                    0
+                  ? COLORS.blue
+                  : COLORS.slate700;
+
+            drawText(
+              context,
+              row.difference !=
+                null
+                ? signedText(
+                    row.difference,
+                    2,
+                  )
+                : "—",
+              left + 1060,
+              y + 28,
+              {
+                size: 15,
+                weight: 700,
+                color:
+                  differenceColor,
+                align:
+                  "center",
+              },
+            );
+
+            y +=
+              rowHeight;
+          },
         );
-      }
 
-      context.strokeStyle =
-        COLORS.slate200;
-      context.lineWidth = 1;
-      context.beginPath();
-      context.moveTo(
-        left,
-        y +
-          rowHeight,
-      );
-      context.lineTo(
-        left + width,
-        y +
-          rowHeight,
-      );
-      context.stroke();
-
-      context.font =
-        "700 16px Arial, sans-serif";
-
-      const label =
-        fitText(
-          context,
-          row.label,
-          470,
-        );
-
-      drawText(
-        context,
-        label,
-        left + 20,
-        y + 33,
-        {
-          size: 16,
-          weight: 700,
-          color:
-            COLORS.slate800,
-        },
-      );
-
-      drawText(
-        context,
-        row.unit,
-        left + 590,
-        y + 33,
-        {
-          size: 15,
-          color:
-            COLORS.slate500,
-          align: "center",
-        },
-      );
-
-      drawText(
-        context,
-        row.current != null
-          ? numberText(
-              row.current,
-              2,
-            )
-          : "—",
-        left + 760,
-        y + 33,
-        {
-          size: 16,
-          weight: 700,
-          align: "center",
-        },
-      );
-
-      drawText(
-        context,
-        row.previous != null
-          ? numberText(
-              row.previous,
-              2,
-            )
-          : "—",
-        left + 920,
-        y + 33,
-        {
-          size: 16,
-          color:
-            COLORS.slate600,
-          align: "center",
-        },
-      );
-
-      const differenceColor =
-        row.difference ==
-          null ||
-        row.difference ===
-          0
-          ? COLORS.slate700
-          : row.difference >
-              0
-            ? COLORS.blue
-            : COLORS.slate700;
-
-      drawText(
-        context,
-        row.difference != null
-          ? signedText(
-              row.difference,
-              2,
-            )
-          : "—",
-        left + 1060,
-        y + 33,
-        {
-          size: 16,
-          weight: 700,
-          color:
-            differenceColor,
-          align: "center",
-        },
-      );
+      y +=
+        groupGap;
     },
   );
-
-  const footerY =
-    1668;
 
   drawText(
     context,
     "San Lorenzo · Fútbol Femenino",
     PAGE_MARGIN,
-    footerY,
+    1682,
     {
       size: 15,
       weight: 700,
@@ -1768,10 +1924,10 @@ function buildMeasurementsCanvas(
 
   drawText(
     context,
-    "Página 2 de 2",
+    "Página 1 de 2",
     CANVAS_WIDTH -
       PAGE_MARGIN,
-    footerY,
+    1682,
     {
       size: 15,
       color:
@@ -2183,10 +2339,10 @@ export async function createFiveComponentsReportPdf(
   const bytes =
     buildImagePdf([
       canvasToJpeg(
-        summaryCanvas,
+        measurementsCanvas,
       ),
       canvasToJpeg(
-        measurementsCanvas,
+        summaryCanvas,
       ),
     ]);
 
