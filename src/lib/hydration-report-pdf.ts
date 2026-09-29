@@ -26,300 +26,47 @@ type PdfResult = {
   fileName: string;
 };
 
-const PAGE_WIDTH = 595;
-const PAGE_HEIGHT = 842;
+const CANVAS_WIDTH = 1240;
+const CANVAS_HEIGHT = 1754;
 
-const LEFT = 38;
-const RIGHT = 38;
+const PDF_WIDTH = 595;
+const PDF_HEIGHT = 842;
 
-function toWinAnsi(
-  value: string,
-) {
-  const replacements:
-    Record<string, number> = {
-      "\u20AC": 128,
-      "\u201A": 130,
-      "\u0192": 131,
-      "\u201E": 132,
-      "\u2026": 133,
-      "\u2020": 134,
-      "\u2021": 135,
-      "\u02C6": 136,
-      "\u2030": 137,
-      "\u0160": 138,
-      "\u2039": 139,
-      "\u0152": 140,
-      "\u017D": 142,
-      "\u2018": 145,
-      "\u2019": 146,
-      "\u201C": 147,
-      "\u201D": 148,
-      "\u2022": 149,
-      "\u2013": 150,
-      "\u2014": 151,
-      "\u02DC": 152,
-      "\u2122": 153,
-      "\u0161": 154,
-      "\u203A": 155,
-      "\u0153": 156,
-      "\u017E": 158,
-      "\u0178": 159,
-    };
+const LEFT = 44;
+const RIGHT = 44;
 
-  let result = "";
+const COLORS = {
+  navy: "#0b234a",
+  white: "#ffffff",
+  slate950: "#0f172a",
+  slate800: "#1e293b",
+  slate700: "#334155",
+  slate600: "#475569",
+  slate500: "#64748b",
+  slate400: "#94a3b8",
+  slate300: "#cbd5e1",
+  slate200: "#e2e8f0",
+  slate100: "#f1f5f9",
+  slate50: "#f8fafc",
+  green: "#10b981",
+  greenDark: "#047857",
+  greenLight: "#d1fae5",
+  rose: "#f43f5e",
+  roseDark: "#be123c",
+  roseLight: "#ffe4e6",
+};
 
-  for (const char of value) {
-    const code =
-      char.charCodeAt(0);
-
-    if (
-      replacements[char] !=
-      null
-    ) {
-      result +=
-        String.fromCharCode(
-          replacements[char],
-        );
-
-      continue;
-    }
-
-    result +=
-      code <= 255
-        ? char
-        : "?";
-  }
-
-  return result;
-}
-
-function escapePdf(
-  value: string,
-) {
-  return toWinAnsi(value)
-    .replace(
-      /\\/g,
-      "\\\\",
-    )
-    .replace(
-      /\(/g,
-      "\\(",
-    )
-    .replace(
-      /\)/g,
-      "\\)",
-    );
-}
-
-function encodePdf(
-  value: string,
-) {
-  const text =
-    toWinAnsi(value);
-
-  const bytes =
-    new Uint8Array(
-      text.length,
-    );
-
-  for (
-    let i = 0;
-    i < text.length;
-    i += 1
-  ) {
-    bytes[i] =
-      text.charCodeAt(i) <=
-      255
-        ? text.charCodeAt(i)
-        : 63;
-  }
-
-  return bytes;
-}
-
-function byteLength(
-  value: string,
-) {
-  return encodePdf(
-    value,
-  ).length;
-}
-
-function textWidth(
-  text: string,
-  size: number,
+function safeDate(
+  date: string,
 ) {
   return (
-    text.length *
-    size *
-    0.49
+    date
+      .replace(
+        /[^0-9-]/g,
+        "",
+      ) ||
+    "sin-fecha"
   );
-}
-
-function fitText(
-  text: string,
-  width: number,
-  size: number,
-) {
-  if (
-    textWidth(
-      text,
-      size,
-    ) <= width
-  ) {
-    return text;
-  }
-
-  let value = text;
-
-  while (
-    value.length > 1 &&
-    textWidth(
-      `${value}...`,
-      size,
-    ) > width
-  ) {
-    value =
-      value.slice(
-        0,
-        -1,
-      );
-  }
-
-  return `${value}...`;
-}
-
-function textCommand({
-  text,
-  x,
-  y,
-  size,
-  bold = false,
-  color = "0.06 0.09 0.16",
-}: {
-  text: string;
-  x: number;
-  y: number;
-  size: number;
-  bold?: boolean;
-  color?: string;
-}) {
-  return [
-    "BT",
-    `/${bold ? "F2" : "F1"} ${size} Tf`,
-    `${color} rg`,
-    `${x.toFixed(
-      2,
-    )} ${y.toFixed(
-      2,
-    )} Td`,
-    `(${escapePdf(
-      text,
-    )}) Tj`,
-    "ET",
-  ].join("\n");
-}
-
-function rightText({
-  text,
-  right,
-  y,
-  size,
-  bold = false,
-  color,
-}: {
-  text: string;
-  right: number;
-  y: number;
-  size: number;
-  bold?: boolean;
-  color?: string;
-}) {
-  return textCommand({
-    text,
-    x:
-      right -
-      textWidth(
-        text,
-        size,
-      ),
-    y,
-    size,
-    bold,
-    color,
-  });
-}
-
-function rectCommand(
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  fill: string,
-) {
-  return [
-    "q",
-    `${fill} rg`,
-    `${x.toFixed(
-      2,
-    )} ${y.toFixed(
-      2,
-    )} ${width.toFixed(
-      2,
-    )} ${height.toFixed(
-      2,
-    )} re`,
-    "f",
-    "Q",
-  ].join("\n");
-}
-
-function strokeRectCommand(
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  stroke = "0.80 0.84 0.89",
-) {
-  return [
-    "q",
-    `${stroke} RG`,
-    "0.6 w",
-    `${x.toFixed(
-      2,
-    )} ${y.toFixed(
-      2,
-    )} ${width.toFixed(
-      2,
-    )} ${height.toFixed(
-      2,
-    )} re`,
-    "S",
-    "Q",
-  ].join("\n");
-}
-
-function lineCommand(
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-) {
-  return [
-    "0.82 0.85 0.89 RG",
-    "0.5 w",
-    `${x1.toFixed(
-      2,
-    )} ${y1.toFixed(
-      2,
-    )} m`,
-    `${x2.toFixed(
-      2,
-    )} ${y2.toFixed(
-      2,
-    )} l`,
-    "S",
-  ].join("\n");
 }
 
 function hydrationStatus(
@@ -335,7 +82,8 @@ function hydrationStatus(
 }
 
 function summaryFor(
-  entries: HydrationPdfEntry[],
+  entries:
+    HydrationPdfEntry[],
 ) {
   let hydrated = 0;
   let dehydrated = 0;
@@ -383,321 +131,564 @@ function summaryFor(
   };
 }
 
-function headerCommands({
-  date,
-  rival,
-  round,
-  dayType,
-  context,
-}: Omit<
-  HydrationPdfInput,
-  "entries" | "mode"
->) {
-  const commands:
-    string[] = [];
+function roundedRect(
+  context:
+    CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius = 14,
+) {
+  const r =
+    Math.min(
+      radius,
+      width / 2,
+      height / 2,
+    );
 
-  commands.push(
-    rectCommand(
-      0,
-      PAGE_HEIGHT - 8,
-      PAGE_WIDTH,
-      8,
-      "0.04 0.14 0.29",
-    ),
+  context.beginPath();
+  context.moveTo(
+    x + r,
+    y,
   );
-
-  commands.push(
-    rectCommand(
-      LEFT,
-      738,
-      48,
-      48,
-      "0.04 0.14 0.29",
-    ),
+  context.lineTo(
+    x + width - r,
+    y,
   );
-
-  commands.push(
-    textCommand({
-      text: "CASLA",
-      x: LEFT + 8,
-      y: 758,
-      size: 10,
-      bold: true,
-      color: "1 1 1",
-    }),
+  context.quadraticCurveTo(
+    x + width,
+    y,
+    x + width,
+    y + r,
   );
-
-  commands.push(
-    textCommand({
-      text:
-        "SAN LORENZO · FÚTBOL FEMENINO",
-      x: LEFT + 60,
-      y: 775,
-      size: 7.5,
-      bold: true,
-      color:
-        "0.39 0.45 0.54",
-    }),
+  context.lineTo(
+    x + width,
+    y + height - r,
   );
-
-  commands.push(
-    textCommand({
-      text:
-        "TEST DE HIDRATACIÓN",
-      x: LEFT + 60,
-      y: 753,
-      size: 18,
-      bold: true,
-    }),
+  context.quadraticCurveTo(
+    x + width,
+    y + height,
+    x + width - r,
+    y + height,
   );
-
-  const metaY = 714;
-
-  commands.push(
-    textCommand({
-      text: `Fecha: ${fmtDate(
-        date,
-      )}`,
-      x: LEFT,
-      y: metaY,
-      size: 8,
-      bold: true,
-    }),
+  context.lineTo(
+    x + r,
+    y + height,
   );
-
-  commands.push(
-    textCommand({
-      text: `Rival: ${
-        rival?.trim() ||
-        "—"
-      }`,
-      x: 205,
-      y: metaY,
-      size: 8,
-      bold: true,
-    }),
+  context.quadraticCurveTo(
+    x,
+    y + height,
+    x,
+    y + height - r,
   );
-
-  commands.push(
-    textCommand({
-      text: `N.º fecha: ${
-        round ?? "—"
-      }`,
-      x: 405,
-      y: metaY,
-      size: 8,
-      bold: true,
-    }),
+  context.lineTo(
+    x,
+    y + r,
   );
-
-  commands.push(
-    textCommand({
-      text: `Tipo de día: ${dayType}`,
-      x: LEFT,
-      y: 697,
-      size: 8,
-    }),
+  context.quadraticCurveTo(
+    x,
+    y,
+    x + r,
+    y,
   );
-
-  commands.push(
-    textCommand({
-      text: `Contexto: ${context}`,
-      x: 290,
-      y: 697,
-      size: 8,
-    }),
-  );
-
-  commands.push(
-    lineCommand(
-      LEFT,
-      683,
-      PAGE_WIDTH -
-        RIGHT,
-      683,
-    ),
-  );
-
-  return commands;
+  context.closePath();
 }
 
-function buildValuesPage({
-  input,
-  entries,
-  pageNumber,
-  totalPages,
-}: {
-  input: HydrationPdfInput;
-  entries: HydrationPdfEntry[];
-  pageNumber: number;
-  totalPages: number;
-}) {
-  const commands =
-    headerCommands({
-      date: input.date,
-      rival: input.rival,
-      round: input.round,
-      dayType:
-        input.dayType,
-      context:
-        input.context,
-    });
+function fillRoundedRect(
+  context:
+    CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+  fill: string,
+  stroke?: string,
+  lineWidth = 2,
+) {
+  roundedRect(
+    context,
+    x,
+    y,
+    width,
+    height,
+    radius,
+  );
 
+  context.fillStyle =
+    fill;
+  context.fill();
+
+  if (stroke) {
+    context.strokeStyle =
+      stroke;
+    context.lineWidth =
+      lineWidth;
+    context.stroke();
+  }
+}
+
+function drawText(
+  context:
+    CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  {
+    size,
+    weight = 400,
+    color =
+      COLORS.slate950,
+    align = "left",
+  }: {
+    size: number;
+    weight?: number;
+    color?: string;
+    align?:
+      CanvasTextAlign;
+  },
+) {
+  context.save();
+  context.font =
+    `${weight} ${size}px Arial, sans-serif`;
+  context.fillStyle =
+    color;
+  context.textAlign =
+    align;
+  context.textBaseline =
+    "alphabetic";
+  context.fillText(
+    text,
+    x,
+    y,
+  );
+  context.restore();
+}
+
+function fitText(
+  context:
+    CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+) {
+  if (
+    context.measureText(
+      text,
+    ).width <=
+    maxWidth
+  ) {
+    return text;
+  }
+
+  let result =
+    text;
+
+  while (
+    result.length > 1 &&
+    context.measureText(
+      `${result}…`,
+    ).width >
+      maxWidth
+  ) {
+    result =
+      result.slice(
+        0,
+        -1,
+      );
+  }
+
+  return `${result}…`;
+}
+
+function loadLogoFromPage() {
+  const images =
+    Array.from(
+      document.images,
+    );
+
+  const logo =
+    images.find(
+      (image) =>
+        image.src.includes(
+          "logo-san-lorenzo.png",
+        ) &&
+        image.complete &&
+        image.naturalWidth >
+          0,
+    );
+
+  return logo ?? null;
+}
+
+function drawLogo(
+  context:
+    CanvasRenderingContext2D,
+  logo:
+    HTMLImageElement | null,
+  x: number,
+  y: number,
+  size: number,
+) {
+  if (!logo) {
+    fillRoundedRect(
+      context,
+      x,
+      y,
+      size,
+      size,
+      12,
+      COLORS.navy,
+    );
+
+    drawText(
+      context,
+      "CASLA",
+      x +
+        size / 2,
+      y +
+        size * 0.58,
+      {
+        size: 18,
+        weight: 700,
+        color:
+          COLORS.white,
+        align: "center",
+      },
+    );
+
+    return;
+  }
+
+  const ratio =
+    Math.min(
+      size /
+        logo.naturalWidth,
+      size /
+        logo.naturalHeight,
+    );
+
+  const width =
+    logo.naturalWidth *
+    ratio;
+
+  const height =
+    logo.naturalHeight *
+    ratio;
+
+  context.drawImage(
+    logo,
+    x +
+      (size -
+        width) /
+        2,
+    y +
+      (size -
+        height) /
+        2,
+    width,
+    height,
+  );
+}
+
+function drawHeader(
+  context:
+    CanvasRenderingContext2D,
+  input:
+    HydrationPdfInput,
+  logo:
+    HTMLImageElement | null,
+) {
+  fillRoundedRect(
+    context,
+    LEFT,
+    38,
+    CANVAS_WIDTH -
+      LEFT -
+      RIGHT,
+    196,
+    14,
+    COLORS.slate50,
+    COLORS.slate300,
+    2,
+  );
+
+  drawLogo(
+    context,
+    logo,
+    LEFT + 18,
+    58,
+    72,
+  );
+
+  drawText(
+    context,
+    "SAN LORENZO · FÚTBOL FEMENINO",
+    LEFT + 108,
+    77,
+    {
+      size: 14,
+      weight: 700,
+      color:
+        COLORS.slate500,
+    },
+  );
+
+  drawText(
+    context,
+    "TEST DE HIDRATACIÓN",
+    LEFT + 108,
+    118,
+    {
+      size: 34,
+      weight: 800,
+      color:
+        COLORS.slate950,
+    },
+  );
+
+  const metaTop =
+    160;
+
+  const col1 =
+    LEFT + 20;
+
+  const col2 =
+    LEFT + 420;
+
+  const col3 =
+    LEFT + 855;
+
+  drawText(
+    context,
+    `Fecha: ${fmtDate(
+      input.date,
+    )}`,
+    col1,
+    metaTop,
+    {
+      size: 16,
+      weight: 700,
+    },
+  );
+
+  drawText(
+    context,
+    `Rival: ${
+      input.rival?.trim() ||
+      "—"
+    }`,
+    col2,
+    metaTop,
+    {
+      size: 16,
+      weight: 700,
+    },
+  );
+
+  drawText(
+    context,
+    `N.º de fecha: ${
+      input.round ?? "—"
+    }`,
+    col3,
+    metaTop,
+    {
+      size: 16,
+      weight: 700,
+    },
+  );
+
+  drawText(
+    context,
+    `Tipo de día: ${input.dayType}`,
+    col1,
+    metaTop + 37,
+    {
+      size: 15,
+      color:
+        COLORS.slate700,
+    },
+  );
+
+  drawText(
+    context,
+    `Contexto: ${input.context}`,
+    col2,
+    metaTop + 37,
+    {
+      size: 15,
+      color:
+        COLORS.slate700,
+    },
+  );
+}
+
+function drawTable(
+  context:
+    CanvasRenderingContext2D,
+  input:
+    HydrationPdfInput,
+  startY: number,
+) {
   const summary =
     summaryFor(
       input.entries,
     );
 
-  commands.push(
-    textCommand({
-      text: "Valores",
-      x: LEFT,
-      y: 662,
-      size: 12,
-      bold: true,
-    }),
+  drawText(
+    context,
+    "Valores",
+    LEFT,
+    startY,
+    {
+      size: 24,
+      weight: 800,
+    },
   );
 
-  commands.push(
-    rightText({
-      text: `${summary.measured} mediciones · ${summary.noData} sin valor`,
-      right:
-        PAGE_WIDTH -
-        RIGHT,
-      y: 662,
-      size: 7.5,
+  drawText(
+    context,
+    `${summary.measured} mediciones · ${summary.noData} sin valor`,
+    CANVAS_WIDTH -
+      RIGHT,
+    startY,
+    {
+      size: 14,
+      weight: 700,
       color:
-        "0.39 0.45 0.54",
-    }),
+        COLORS.slate500,
+      align: "right",
+    },
   );
-
-  const tableX =
-    LEFT;
 
   const tableTop =
-    644;
-
-  const rowHeight =
-    18;
-
-  const nameWidth =
-    128;
-
-  const valueWidth =
-    62;
-
-  const statusWidth =
-    92;
-
-  const observationWidth =
-    118;
+    startY + 24;
 
   const tableWidth =
-    nameWidth +
-    valueWidth +
-    statusWidth +
-    observationWidth;
+    CANVAS_WIDTH -
+    LEFT -
+    RIGHT;
 
   const headerHeight =
-    23;
+    34;
 
-  commands.push(
-    rectCommand(
-      tableX,
-      tableTop -
-        headerHeight,
-      tableWidth,
-      headerHeight,
-      "0.04 0.14 0.29",
-    ),
+  const rowHeight =
+    31;
+
+  const nameWidth =
+    300;
+
+  const valueWidth =
+    150;
+
+  const stateWidth =
+    250;
+
+  const observationWidth =
+    tableWidth -
+    nameWidth -
+    valueWidth -
+    stateWidth;
+
+  context.fillStyle =
+    COLORS.navy;
+
+  context.fillRect(
+    LEFT,
+    tableTop,
+    tableWidth,
+    headerHeight,
   );
+
+  const columnX = [
+    LEFT,
+    LEFT +
+      nameWidth,
+    LEFT +
+      nameWidth +
+      valueWidth,
+    LEFT +
+      nameWidth +
+      valueWidth +
+      stateWidth,
+  ];
 
   const headers = [
     {
       text: "Jugadora",
-      x: tableX,
-      width:
-        nameWidth,
+      x:
+        columnX[0] +
+        12,
     },
     {
       text: "Valor",
       x:
-        tableX +
-        nameWidth,
-      width:
-        valueWidth,
+        columnX[1] +
+        valueWidth /
+          2,
+      align:
+        "center" as const,
     },
     {
       text: "Estado",
       x:
-        tableX +
-        nameWidth +
-        valueWidth,
-      width:
-        statusWidth,
+        columnX[2] +
+        stateWidth /
+          2,
+      align:
+        "center" as const,
     },
     {
       text:
         "Observación",
       x:
-        tableX +
-        nameWidth +
-        valueWidth +
-        statusWidth,
-      width:
-        observationWidth,
+        columnX[3] +
+        12,
     },
   ];
 
-  for (
-    const header of
-    headers
-  ) {
-    commands.push(
-      textCommand({
-        text:
-          header.text,
-        x:
-          header.x +
-          5,
-        y:
-          tableTop -
-          15,
-        size: 7,
-        bold: true,
-        color: "1 1 1",
-      }),
-    );
-  }
+  headers.forEach(
+    (header) =>
+      drawText(
+        context,
+        header.text,
+        header.x,
+        tableTop + 23,
+        {
+          size: 14,
+          weight: 700,
+          color:
+            COLORS.white,
+          align:
+            header.align ??
+            "left",
+        },
+      ),
+  );
 
-  entries.forEach(
+  input.entries.forEach(
     (
       entry,
       index,
     ) => {
-      const rowTop =
-        tableTop -
-        headerHeight -
-        rowHeight *
-          index;
+      const y =
+        tableTop +
+        headerHeight +
+        index *
+          rowHeight;
 
-      const rowBottom =
-        rowTop -
-        rowHeight;
+      context.fillStyle =
+        index % 2 === 0
+          ? COLORS.white
+          : COLORS.slate50;
 
-      if (
-        index % 2 === 1
-      ) {
-        commands.push(
-          rectCommand(
-            tableX,
-            rowBottom,
-            tableWidth,
-            rowHeight,
-            "0.98 0.985 0.99",
-          ),
-        );
-      }
+      context.fillRect(
+        LEFT,
+        y,
+        tableWidth,
+        rowHeight,
+      );
 
       const status =
         hydrationStatus(
@@ -707,220 +698,419 @@ function buildValuesPage({
       if (
         entry.value != null
       ) {
-        commands.push(
-          rectCommand(
-            tableX +
-              nameWidth +
-              valueWidth +
-              2,
-            rowBottom +
-              2,
-            statusWidth -
-              4,
-            rowHeight -
-              4,
-            entry.value <=
-            1020
-              ? "0.86 0.97 0.91"
-              : "1 0.90 0.90",
-          ),
+        context.fillStyle =
+          entry.value <=
+          1020
+            ? COLORS.greenLight
+            : COLORS.roseLight;
+
+        context.fillRect(
+          columnX[2],
+          y,
+          stateWidth,
+          rowHeight,
         );
       }
 
-      commands.push(
-        textCommand({
-          text: fitText(
-            entry.playerName,
-            nameWidth -
-              10,
-            7,
-          ),
-          x:
-            tableX +
-            5,
-          y:
-            rowBottom +
-            6,
-          size: 7,
-          bold: true,
-        }),
+      context.strokeStyle =
+        COLORS.slate300;
+
+      context.lineWidth =
+        1;
+
+      context.beginPath();
+
+      for (
+        let i = 0;
+        i <
+        columnX.length;
+        i += 1
+      ) {
+        context.moveTo(
+          columnX[i],
+          y,
+        );
+
+        context.lineTo(
+          columnX[i],
+          y +
+            rowHeight,
+        );
+      }
+
+      context.moveTo(
+        LEFT +
+          tableWidth,
+        y,
       );
 
-      commands.push(
-        textCommand({
-          text:
-            entry.value !=
-            null
-              ? String(
-                  entry.value,
-                )
-              : "—",
-          x:
-            tableX +
-            nameWidth +
-            8,
-          y:
-            rowBottom +
-            6,
-          size: 7,
-        }),
+      context.lineTo(
+        LEFT +
+          tableWidth,
+        y +
+          rowHeight,
       );
 
-      commands.push(
-        textCommand({
-          text: fitText(
-            status,
-            statusWidth -
-              10,
-            6.4,
-          ),
-          x:
-            tableX +
-            nameWidth +
-            valueWidth +
-            5,
-          y:
-            rowBottom +
-            6,
-          size: 6.4,
-          bold: true,
+      context.moveTo(
+        LEFT,
+        y +
+          rowHeight,
+      );
+
+      context.lineTo(
+        LEFT +
+          tableWidth,
+        y +
+          rowHeight,
+      );
+
+      context.stroke();
+
+      context.font =
+        "700 13px Arial, sans-serif";
+
+      drawText(
+        context,
+        fitText(
+          context,
+          entry.playerName,
+          nameWidth -
+            22,
+        ),
+        LEFT + 12,
+        y + 21,
+        {
+          size: 13,
+          weight: 700,
+        },
+      );
+
+      drawText(
+        context,
+        entry.value !=
+          null
+          ? String(
+              entry.value,
+            )
+          : "—",
+        columnX[1] +
+          valueWidth / 2,
+        y + 21,
+        {
+          size: 13,
+          color:
+            COLORS.slate700,
+          align: "center",
+        },
+      );
+
+      drawText(
+        context,
+        status,
+        columnX[2] +
+          stateWidth / 2,
+        y + 21,
+        {
+          size: 13,
+          weight: 700,
           color:
             entry.value ==
             null
-              ? "0.35 0.40 0.47"
+              ? COLORS.slate600
               : entry.value <=
                   1020
-                ? "0.08 0.39 0.22"
-                : "0.65 0.09 0.09",
-        }),
+                ? COLORS.greenDark
+                : COLORS.roseDark,
+          align: "center",
+        },
       );
 
-      commands.push(
-        textCommand({
-          text: fitText(
-            entry.observation ??
-              "—",
-            observationWidth -
-              10,
-            6.5,
-          ),
-          x:
-            tableX +
-            nameWidth +
-            valueWidth +
-            statusWidth +
-            5,
-          y:
-            rowBottom +
-            6,
-          size: 6.5,
-        }),
-      );
+      context.font =
+        "400 13px Arial, sans-serif";
 
-      commands.push(
-        lineCommand(
-          tableX,
-          rowBottom,
-          tableX +
-            tableWidth,
-          rowBottom,
+      drawText(
+        context,
+        fitText(
+          context,
+          entry.observation ??
+            "—",
+          observationWidth -
+            22,
         ),
+        columnX[3] +
+          12,
+        y + 21,
+        {
+          size: 13,
+          color:
+            COLORS.slate700,
+        },
       );
     },
   );
 
-  const bottom =
-    tableTop -
-    headerHeight -
-    rowHeight *
-      entries.length;
+  context.strokeStyle =
+    COLORS.slate300;
 
-  commands.push(
-    strokeRectCommand(
-      tableX,
-      bottom,
-      tableWidth,
-      tableTop -
-        bottom,
-    ),
+  context.lineWidth =
+    1;
+
+  context.strokeRect(
+    LEFT,
+    tableTop,
+    tableWidth,
+    headerHeight +
+      input.entries.length *
+        rowHeight,
   );
 
-  commands.push(
-    rightText({
-      text: `Página ${pageNumber} de ${totalPages}`,
-      right:
-        PAGE_WIDTH -
-        RIGHT,
-      y: 25,
-      size: 7,
-      color:
-        "0.42 0.47 0.55",
-    }),
-  );
-
-  return commands.join(
-    "\n",
+  return (
+    tableTop +
+    headerHeight +
+    input.entries.length *
+      rowHeight
   );
 }
 
-function buildChartPage({
-  input,
-  pageNumber,
-  totalPages,
-}: {
-  input: HydrationPdfInput;
-  pageNumber: number;
-  totalPages: number;
-}) {
-  const commands =
-    headerCommands({
-      date: input.date,
-      rival: input.rival,
-      round: input.round,
-      dayType:
-        input.dayType,
-      context:
-        input.context,
-    });
-
+function drawSummary(
+  context:
+    CanvasRenderingContext2D,
+  input:
+    HydrationPdfInput,
+  startY: number,
+) {
   const summary =
     summaryFor(
       input.entries,
     );
 
-  commands.push(
-    textCommand({
-      text:
-        "Estado de hidratación",
-      x: LEFT,
-      y: 655,
-      size: 16,
-      bold: true,
-    }),
+  const width =
+    CANVAS_WIDTH -
+    LEFT -
+    RIGHT;
+
+  drawText(
+    context,
+    "Estado de hidratación",
+    LEFT,
+    startY,
+    {
+      size: 24,
+      weight: 800,
+    },
   );
 
-  commands.push(
-    textCommand({
-      text:
-        "Porcentajes calculados sobre las jugadoras con medición.",
-      x: LEFT,
-      y: 636,
-      size: 8,
+  drawText(
+    context,
+    "Porcentajes calculados solo sobre las jugadoras con medición.",
+    LEFT,
+    startY + 27,
+    {
+      size: 13,
       color:
-        "0.39 0.45 0.54",
-    }),
+        COLORS.slate500,
+    },
   );
 
-  const cardY =
-    555;
+  const barX =
+    LEFT;
+
+  const barWidth =
+    width;
+
+  const barHeight =
+    28;
+
+  const labelGap =
+    52;
+
+  const firstY =
+    startY + 72;
+
+  const secondY =
+    firstY + 86;
+
+  drawText(
+    context,
+    "Bien hidratadas",
+    barX,
+    firstY,
+    {
+      size: 15,
+      weight: 700,
+    },
+  );
+
+  drawText(
+    context,
+    `${summary.hydratedPercent.toFixed(
+      1,
+    )}% · ${summary.hydrated} de ${summary.measured}`,
+    barX +
+      barWidth,
+    firstY,
+    {
+      size: 15,
+      weight: 700,
+      color:
+        COLORS.greenDark,
+      align: "right",
+    },
+  );
+
+  fillRoundedRect(
+    context,
+    barX,
+    firstY + 12,
+    barWidth,
+    barHeight,
+    9,
+    COLORS.slate100,
+    COLORS.green,
+    2,
+  );
+
+  if (
+    summary.hydratedPercent >
+    0
+  ) {
+    fillRoundedRect(
+      context,
+      barX,
+      firstY + 12,
+      Math.max(
+        18,
+        barWidth *
+          (summary.hydratedPercent /
+            100),
+      ),
+      barHeight,
+      9,
+      COLORS.green,
+    );
+  }
+
+  if (
+    summary.hydratedPercent >=
+    12
+  ) {
+    drawText(
+      context,
+      `${summary.hydratedPercent.toFixed(
+        1,
+      )}%`,
+      barX +
+        barWidth *
+          (summary.hydratedPercent /
+            100) /
+          2,
+      firstY + 32,
+      {
+        size: 13,
+        weight: 800,
+        color:
+          COLORS.white,
+        align: "center",
+      },
+    );
+  }
+
+  drawText(
+    context,
+    "Deshidratadas",
+    barX,
+    secondY,
+    {
+      size: 15,
+      weight: 700,
+    },
+  );
+
+  drawText(
+    context,
+    `${summary.dehydratedPercent.toFixed(
+      1,
+    )}% · ${summary.dehydrated} de ${summary.measured}`,
+    barX +
+      barWidth,
+    secondY,
+    {
+      size: 15,
+      weight: 700,
+      color:
+        COLORS.roseDark,
+      align: "right",
+    },
+  );
+
+  fillRoundedRect(
+    context,
+    barX,
+    secondY + 12,
+    barWidth,
+    barHeight,
+    9,
+    COLORS.slate100,
+    COLORS.rose,
+    2,
+  );
+
+  if (
+    summary.dehydratedPercent >
+    0
+  ) {
+    fillRoundedRect(
+      context,
+      barX,
+      secondY + 12,
+      Math.max(
+        18,
+        barWidth *
+          (summary.dehydratedPercent /
+            100),
+      ),
+      barHeight,
+      9,
+      COLORS.rose,
+    );
+  }
+
+  if (
+    summary.dehydratedPercent >=
+    12
+  ) {
+    drawText(
+      context,
+      `${summary.dehydratedPercent.toFixed(
+        1,
+      )}%`,
+      barX +
+        barWidth *
+          (summary.dehydratedPercent /
+            100) /
+          2,
+      secondY + 32,
+      {
+        size: 13,
+        weight: 800,
+        color:
+          COLORS.white,
+        align: "center",
+      },
+    );
+  }
+
+  const cardsY =
+    secondY + 74;
+
+  const gap = 18;
 
   const cardWidth =
-    155;
-
-  const cardHeight =
-    58;
-
-  const gap = 17;
+    (
+      width -
+      gap * 2
+    ) /
+    3;
 
   const cards = [
     {
@@ -928,18 +1118,36 @@ function buildChartPage({
         "Bien hidratadas",
       value:
         summary.hydrated,
+      fill:
+        COLORS.greenLight,
+      border:
+        "#a7f3d0",
+      color:
+        COLORS.greenDark,
     },
     {
       label:
         "Deshidratadas",
       value:
         summary.dehydrated,
+      fill:
+        COLORS.roseLight,
+      border:
+        "#fecdd3",
+      color:
+        COLORS.roseDark,
     },
     {
       label:
         "Sin medición",
       value:
         summary.noData,
+      fill:
+        COLORS.slate50,
+      border:
+        COLORS.slate300,
+      color:
+        COLORS.slate700,
     },
   ];
 
@@ -954,448 +1162,100 @@ function buildChartPage({
           (cardWidth +
             gap);
 
-      commands.push(
-        rectCommand(
-          x,
-          cardY,
-          cardWidth,
-          cardHeight,
-          "0.97 0.975 0.985",
+      fillRoundedRect(
+        context,
+        x,
+        cardsY,
+        cardWidth,
+        78,
+        12,
+        card.fill,
+        card.border,
+        2,
+      );
+
+      drawText(
+        context,
+        String(
+          card.value,
         ),
-      );
-
-      commands.push(
-        strokeRectCommand(
-          x,
-          cardY,
-          cardWidth,
-          cardHeight,
-        ),
-      );
-
-      commands.push(
-        textCommand({
-          text:
-            String(
-              card.value,
-            ),
-          x: x + 12,
-          y:
-            cardY +
-            30,
-          size: 18,
-          bold: true,
-        }),
-      );
-
-      commands.push(
-        textCommand({
-          text:
-            card.label,
-          x: x + 12,
-          y:
-            cardY +
-            13,
-          size: 7.5,
+        x +
+          cardWidth / 2,
+        cardsY + 35,
+        {
+          size: 27,
+          weight: 800,
           color:
-            "0.39 0.45 0.54",
-        }),
+            card.color,
+          align:
+            "center",
+        },
+      );
+
+      drawText(
+        context,
+        card.label,
+        x +
+          cardWidth / 2,
+        cardsY + 61,
+        {
+          size: 13,
+          weight: 700,
+          color:
+            card.color,
+          align:
+            "center",
+        },
       );
     },
   );
-
-  const chartX =
-    LEFT;
-
-  const chartWidth =
-    PAGE_WIDTH -
-    LEFT -
-    RIGHT;
-
-  const barHeight =
-    34;
-
-  const hydratedY =
-    445;
-
-  const dehydratedY =
-    350;
-
-  commands.push(
-    textCommand({
-      text:
-        "Bien hidratadas",
-      x: chartX,
-      y:
-        hydratedY +
-        50,
-      size: 10,
-      bold: true,
-    }),
-  );
-
-  commands.push(
-    rightText({
-      text: `${summary.hydratedPercent.toFixed(
-        1,
-      )}%`,
-      right:
-        chartX +
-        chartWidth,
-      y:
-        hydratedY +
-        50,
-      size: 11,
-      bold: true,
-      color:
-        "0.08 0.39 0.22",
-    }),
-  );
-
-  commands.push(
-    rectCommand(
-      chartX,
-      hydratedY,
-      chartWidth,
-      barHeight,
-      "0.92 0.94 0.96",
-    ),
-  );
-
-  commands.push(
-    rectCommand(
-      chartX,
-      hydratedY,
-      chartWidth *
-        (summary.hydratedPercent /
-          100),
-      barHeight,
-      "0.45 0.82 0.62",
-    ),
-  );
-
-  commands.push(
-    textCommand({
-      text:
-        "Deshidratadas",
-      x: chartX,
-      y:
-        dehydratedY +
-        50,
-      size: 10,
-      bold: true,
-    }),
-  );
-
-  commands.push(
-    rightText({
-      text: `${summary.dehydratedPercent.toFixed(
-        1,
-      )}%`,
-      right:
-        chartX +
-        chartWidth,
-      y:
-        dehydratedY +
-        50,
-      size: 11,
-      bold: true,
-      color:
-        "0.65 0.09 0.09",
-    }),
-  );
-
-  commands.push(
-    rectCommand(
-      chartX,
-      dehydratedY,
-      chartWidth,
-      barHeight,
-      "0.92 0.94 0.96",
-    ),
-  );
-
-  commands.push(
-    rectCommand(
-      chartX,
-      dehydratedY,
-      chartWidth *
-        (summary.dehydratedPercent /
-          100),
-      barHeight,
-      "0.93 0.45 0.45",
-    ),
-  );
-
-  if (
-    summary.measured === 0
-  ) {
-    commands.push(
-      textCommand({
-        text:
-          "No hay valores cargados para calcular porcentajes.",
-        x: LEFT,
-        y: 285,
-        size: 9,
-        color:
-          "0.39 0.45 0.54",
-      }),
-    );
-  }
-
-  commands.push(
-    rightText({
-      text: `Página ${pageNumber} de ${totalPages}`,
-      right:
-        PAGE_WIDTH -
-        RIGHT,
-      y: 25,
-      size: 7,
-      color:
-        "0.42 0.47 0.55",
-    }),
-  );
-
-  return commands.join(
-    "\n",
-  );
 }
 
-function buildPdf(
-  pages: string[],
+function buildCanvas(
+  input:
+    HydrationPdfInput,
+  logo:
+    HTMLImageElement | null,
 ) {
-  const pageCount =
-    pages.length;
-
-  const pageObjects =
-    Array.from(
-      {
-        length:
-          pageCount,
-      },
-      (_, index) =>
-        5 +
-        index * 2,
+  const canvas =
+    document.createElement(
+      "canvas",
     );
 
-  const contentObjects =
-    pageObjects.map(
-      (number) =>
-        number + 1,
+  canvas.width =
+    CANVAS_WIDTH;
+  canvas.height =
+    CANVAS_HEIGHT;
+
+  const context =
+    canvas.getContext(
+      "2d",
     );
 
-  const objectCount =
-    4 +
-    pageCount * 2;
-
-  const objects =
-    new Array<string>(
-      objectCount +
-        1,
+  if (!context) {
+    throw new Error(
+      "No se pudo crear el PDF.",
     );
-
-  objects[1] =
-    "<< /Type /Catalog /Pages 2 0 R >>";
-
-  objects[2] = [
-    "<<",
-    "/Type /Pages",
-    `/Count ${pageCount}`,
-    `/Kids [${pageObjects
-      .map(
-        (number) =>
-          `${number} 0 R`,
-      )
-      .join(" ")}]`,
-    ">>",
-  ].join("\n");
-
-  objects[3] = [
-    "<<",
-    "/Type /Font",
-    "/Subtype /Type1",
-    "/BaseFont /Helvetica",
-    "/Encoding /WinAnsiEncoding",
-    ">>",
-  ].join("\n");
-
-  objects[4] = [
-    "<<",
-    "/Type /Font",
-    "/Subtype /Type1",
-    "/BaseFont /Helvetica-Bold",
-    "/Encoding /WinAnsiEncoding",
-    ">>",
-  ].join("\n");
-
-  pages.forEach(
-    (
-      content,
-      index,
-    ) => {
-      const pageObject =
-        pageObjects[
-          index
-        ];
-
-      const contentObject =
-        contentObjects[
-          index
-        ];
-
-      objects[
-        pageObject
-      ] = [
-        "<<",
-        "/Type /Page",
-        "/Parent 2 0 R",
-        `/MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}]`,
-        "/Resources <<",
-        "/Font <<",
-        "/F1 3 0 R",
-        "/F2 4 0 R",
-        ">>",
-        ">>",
-        `/Contents ${contentObject} 0 R`,
-        ">>",
-      ].join("\n");
-
-      objects[
-        contentObject
-      ] = [
-        `<< /Length ${byteLength(
-          content,
-        )} >>`,
-        "stream",
-        content,
-        "endstream",
-      ].join("\n");
-    },
-  );
-
-  const chunks:
-    string[] = [];
-
-  const offsets =
-    new Array<number>(
-      objectCount +
-        1,
-    ).fill(0);
-
-  const header =
-    "%PDF-1.4\n";
-
-  chunks.push(
-    header,
-  );
-
-  let currentOffset =
-    byteLength(
-      header,
-    );
-
-  for (
-    let number = 1;
-    number <=
-    objectCount;
-    number += 1
-  ) {
-    offsets[number] =
-      currentOffset;
-
-    const chunk = [
-      `${number} 0 obj`,
-      objects[number],
-      "endobj",
-      "",
-    ].join("\n");
-
-    chunks.push(
-      chunk,
-    );
-
-    currentOffset +=
-      byteLength(
-        chunk,
-      );
   }
 
-  const xrefOffset =
-    currentOffset;
+  context.fillStyle =
+    COLORS.white;
 
-  let xref =
-    `xref\n0 ${
-      objectCount + 1
-    }\n`;
-
-  xref +=
-    "0000000000 65535 f \n";
-
-  for (
-    let number = 1;
-    number <=
-    objectCount;
-    number += 1
-  ) {
-    xref += `${String(
-      offsets[number],
-    ).padStart(
-      10,
-      "0",
-    )} 00000 n \n`;
-  }
-
-  const trailer = [
-    "trailer",
-    "<<",
-    `/Size ${
-      objectCount + 1
-    }`,
-    "/Root 1 0 R",
-    ">>",
-    "startxref",
-    String(
-      xrefOffset,
-    ),
-    "%%EOF",
-    "",
-  ].join("\n");
-
-  chunks.push(
-    xref,
-    trailer,
+  context.fillRect(
+    0,
+    0,
+    CANVAS_WIDTH,
+    CANVAS_HEIGHT,
   );
 
-  return encodePdf(
-    chunks.join(""),
+  drawHeader(
+    context,
+    input,
+    logo,
   );
-}
 
-function safeDate(
-  date: string,
-) {
-  return (
-    date
-      .replace(
-        /[^0-9-]/g,
-        "",
-      ) ||
-    "sin-fecha"
-  );
-}
-
-export function createHydrationReportPdf(
-  input: HydrationPdfInput,
-): PdfResult {
-  const pages:
-    string[] = [];
-
-  const rowsPerPage =
-    29;
-
-  const valueChunks:
-    HydrationPdfEntry[][] =
-    [];
+  let bottom =
+    265;
 
   if (
     input.mode ===
@@ -1403,75 +1263,376 @@ export function createHydrationReportPdf(
     input.mode ===
       "both"
   ) {
-    for (
-      let index = 0;
-      index <
-      input.entries.length;
-      index +=
-        rowsPerPage
-    ) {
-      valueChunks.push(
-        input.entries.slice(
-          index,
-          index +
-            rowsPerPage,
-        ),
+    bottom =
+      drawTable(
+        context,
+        input,
+        278,
       );
-    }
-
-    if (
-      valueChunks.length ===
-      0
-    ) {
-      valueChunks.push([]);
-    }
   }
 
-  const chartPages =
+  if (
     input.mode ===
       "chart" ||
     input.mode ===
       "both"
-      ? 1
-      : 0;
-
-  const totalPages =
-    valueChunks.length +
-    chartPages;
-
-  valueChunks.forEach(
-    (
-      entries,
-      index,
-    ) => {
-      pages.push(
-        buildValuesPage({
-          input,
-          entries,
-          pageNumber:
-            index + 1,
-          totalPages,
-        }),
-      );
-    },
-  );
-
-  if (
-    chartPages === 1
   ) {
-    pages.push(
-      buildChartPage({
-        input,
-        pageNumber:
-          pages.length +
-          1,
-        totalPages,
-      }),
+    drawSummary(
+      context,
+      input,
+      input.mode ===
+        "both"
+        ? bottom + 42
+        : 330,
     );
   }
 
+  drawText(
+    context,
+    "San Lorenzo · Fútbol Femenino",
+    LEFT,
+    CANVAS_HEIGHT - 38,
+    {
+      size: 12,
+      weight: 700,
+      color:
+        COLORS.slate500,
+    },
+  );
+
+  return canvas;
+}
+
+function base64ToBytes(
+  value: string,
+) {
+  const binary =
+    atob(value);
+
   const bytes =
-    buildPdf(pages);
+    new Uint8Array(
+      binary.length,
+    );
+
+  for (
+    let index = 0;
+    index <
+    binary.length;
+    index += 1
+  ) {
+    bytes[index] =
+      binary.charCodeAt(
+        index,
+      );
+  }
+
+  return bytes;
+}
+
+function canvasToJpeg(
+  canvas:
+    HTMLCanvasElement,
+) {
+  const dataUrl =
+    canvas.toDataURL(
+      "image/jpeg",
+      0.94,
+    );
+
+  const base64 =
+    dataUrl.split(
+      ",",
+    )[1];
+
+  return base64ToBytes(
+    base64,
+  );
+}
+
+function asciiBytes(
+  value: string,
+) {
+  const bytes =
+    new Uint8Array(
+      value.length,
+    );
+
+  for (
+    let index = 0;
+    index <
+    value.length;
+    index += 1
+  ) {
+    bytes[index] =
+      value.charCodeAt(
+        index,
+      ) & 255;
+  }
+
+  return bytes;
+}
+
+function concatBytes(
+  parts:
+    Uint8Array[],
+) {
+  const length =
+    parts.reduce(
+      (
+        total,
+        part,
+      ) =>
+        total +
+        part.length,
+      0,
+    );
+
+  const result =
+    new Uint8Array(
+      length,
+    );
+
+  let offset = 0;
+
+  parts.forEach(
+    (part) => {
+      result.set(
+        part,
+        offset,
+      );
+
+      offset +=
+        part.length;
+    },
+  );
+
+  return result;
+}
+
+function buildImagePdf(
+  imageBytes:
+    Uint8Array,
+) {
+  const objects =
+    new Map<
+      number,
+      Uint8Array
+    >();
+
+  objects.set(
+    1,
+    asciiBytes(
+      "<< /Type /Catalog /Pages 2 0 R >>",
+    ),
+  );
+
+  objects.set(
+    2,
+    asciiBytes(
+      "<< /Type /Pages /Count 1 /Kids [3 0 R] >>",
+    ),
+  );
+
+  objects.set(
+    3,
+    asciiBytes(
+      [
+        "<<",
+        "/Type /Page",
+        "/Parent 2 0 R",
+        `/MediaBox [0 0 ${PDF_WIDTH} ${PDF_HEIGHT}]`,
+        "/Resources << /XObject << /Im1 4 0 R >> >>",
+        "/Contents 5 0 R",
+        ">>",
+      ].join(
+        "\n",
+      ),
+    ),
+  );
+
+  const imageHeader =
+    asciiBytes(
+      [
+        "<<",
+        "/Type /XObject",
+        "/Subtype /Image",
+        `/Width ${CANVAS_WIDTH}`,
+        `/Height ${CANVAS_HEIGHT}`,
+        "/ColorSpace /DeviceRGB",
+        "/BitsPerComponent 8",
+        "/Filter /DCTDecode",
+        `/Length ${imageBytes.length}`,
+        ">>",
+        "stream",
+        "",
+      ].join(
+        "\n",
+      ),
+    );
+
+  objects.set(
+    4,
+    concatBytes([
+      imageHeader,
+      imageBytes,
+      asciiBytes(
+        "\nendstream",
+      ),
+    ]),
+  );
+
+  const content =
+    `q\n${PDF_WIDTH} 0 0 ${PDF_HEIGHT} 0 0 cm\n/Im1 Do\nQ\n`;
+
+  const contentBytes =
+    asciiBytes(
+      content,
+    );
+
+  objects.set(
+    5,
+    concatBytes([
+      asciiBytes(
+        `<< /Length ${contentBytes.length} >>\nstream\n`,
+      ),
+      contentBytes,
+      asciiBytes(
+        "endstream",
+      ),
+    ]),
+  );
+
+  const chunks:
+    Uint8Array[] = [];
+
+  const offsets =
+    new Array<number>(
+      6,
+    ).fill(0);
+
+  const header =
+    asciiBytes(
+      "%PDF-1.4\n%\xE2\xE3\xCF\xD3\n",
+    );
+
+  chunks.push(
+    header,
+  );
+
+  let offset =
+    header.length;
+
+  for (
+    let objectNumber = 1;
+    objectNumber <= 5;
+    objectNumber += 1
+  ) {
+    offsets[
+      objectNumber
+    ] =
+      offset;
+
+    const prefix =
+      asciiBytes(
+        `${objectNumber} 0 obj\n`,
+      );
+
+    const body =
+      objects.get(
+        objectNumber,
+      ) ??
+      asciiBytes(
+        "<<>>",
+      );
+
+    const suffix =
+      asciiBytes(
+        "\nendobj\n",
+      );
+
+    chunks.push(
+      prefix,
+      body,
+      suffix,
+    );
+
+    offset +=
+      prefix.length +
+      body.length +
+      suffix.length;
+  }
+
+  const xrefOffset =
+    offset;
+
+  let xref =
+    "xref\n0 6\n";
+
+  xref +=
+    "0000000000 65535 f \n";
+
+  for (
+    let objectNumber = 1;
+    objectNumber <= 5;
+    objectNumber += 1
+  ) {
+    xref += `${String(
+      offsets[
+        objectNumber
+      ],
+    ).padStart(
+      10,
+      "0",
+    )} 00000 n \n`;
+  }
+
+  const trailer =
+    [
+      "trailer",
+      "<< /Size 6 /Root 1 0 R >>",
+      "startxref",
+      String(
+        xrefOffset,
+      ),
+      "%%EOF",
+      "",
+    ].join(
+      "\n",
+    );
+
+  chunks.push(
+    asciiBytes(
+      xref,
+    ),
+    asciiBytes(
+      trailer,
+    ),
+  );
+
+  return concatBytes(
+    chunks,
+  );
+}
+
+export function createHydrationReportPdf(
+  input:
+    HydrationPdfInput,
+): PdfResult {
+  const logo =
+    loadLogoFromPage();
+
+  const canvas =
+    buildCanvas(
+      input,
+      logo,
+    );
+
+  const bytes =
+    buildImagePdf(
+      canvasToJpeg(
+        canvas,
+      ),
+    );
 
   return {
     blob: new Blob(
