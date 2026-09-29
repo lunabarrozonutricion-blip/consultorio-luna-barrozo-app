@@ -381,13 +381,11 @@ const [
           .weightAdjustedMassesPercent
       : null;
 
-  function updateImportedMeasure(
+function updateImportedMeasureDraft(
   key: FullAnthropometryMeasureKey,
   index: number,
   rawValue: string,
 ) {
-  if (!parsed) return;
-
   const draftKey =
     `${key}:${index}`;
 
@@ -398,6 +396,67 @@ const [
         rawValue,
     }),
   );
+}
+
+function commitImportedMeasure(
+  key: FullAnthropometryMeasureKey,
+  index: number,
+  rawValue: string,
+) {
+  if (!parsed) return;
+
+  const current =
+    parsed.measures[key];
+
+  const nextSeries = [
+    ...(current?.series ?? [
+      null,
+      null,
+      null,
+      null,
+      null,
+    ]),
+  ] as [
+    number | null,
+    number | null,
+    number | null,
+    number | null,
+    number | null,
+  ];
+
+  if (
+    rawValue.trim() === ""
+  ) {
+    nextSeries[index] =
+      null;
+  } else {
+    const parsedValue =
+      parseNum(rawValue);
+
+    if (
+      parsedValue == null
+    ) {
+      return;
+    }
+
+    nextSeries[index] =
+      parsedValue;
+  }
+
+  const nextMeasure =
+    calculateMeasureStatistics(
+      nextSeries,
+    );
+
+  setParsed({
+    ...parsed,
+    measures: {
+      ...parsed.measures,
+      [key]:
+        nextMeasure,
+    },
+  });
+}
 
   const current =
     parsed.measures[key];
@@ -1084,12 +1143,19 @@ const [
   (measure?.series[index] ?? "")
 }
                                     onChange={(event) =>
-                                      updateImportedMeasure(
-                                        definition.key,
-                                        index,
-                                        event.target.value,
-                                      )
-                                    }
+  updateImportedMeasureDraft(
+    definition.key,
+    index,
+    event.target.value,
+  )
+}
+onBlur={(event) =>
+  commitImportedMeasure(
+    definition.key,
+    index,
+    event.target.value,
+  )
+}
                                     placeholder="Completar"
                                     className={`h-9 text-center ${
                                       measure?.series[index] == null && definition.usedInKerr
