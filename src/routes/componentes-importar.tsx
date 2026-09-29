@@ -20,6 +20,7 @@ import { AppLayout } from "@/components/app-layout";
 import { ClientOnly } from "@/components/client-only";
 import { PlayerNav } from "@/components/player-nav";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 import {
   antropogimsDecimalAge,
@@ -33,6 +34,7 @@ import type {
 import {
   fmt,
   fmtDate,
+  parseNum,
 } from "@/lib/calc";
 
 import {
@@ -41,6 +43,7 @@ import {
 
 import {
   calculateFiveComponents,
+  calculateMeasureStatistics,
   missingKerrMeasures,
 } from "@/lib/kerr";
 
@@ -57,6 +60,7 @@ import type {
   FiveComponentMasses,
   FullAnthropometry,
   FullAnthropometryGroup,
+  FullAnthropometryMeasureKey,
 } from "@/lib/types";
 
 export const Route = createFileRoute(
@@ -97,7 +101,7 @@ function normalizeName(
   return value
     .normalize("NFD")
     .replace(
-      /[\u0300-\u036f]/g,
+      /[̀-ͯ]/g,
       "",
     )
     .toLowerCase()
@@ -372,6 +376,34 @@ function ImportarAntropogims() {
       ? preview
           .weightAdjustedMassesPercent
       : null;
+
+  function updateImportedMeasure(
+    key: FullAnthropometryMeasureKey,
+    index: number,
+    rawValue: string,
+  ) {
+    if (!parsed) return;
+
+    const current = parsed.measures[key];
+    const nextSeries = [...(current?.series ?? [null, null, null, null, null])] as [
+      number | null,
+      number | null,
+      number | null,
+      number | null,
+      number | null,
+    ];
+
+    nextSeries[index] = parseNum(rawValue);
+    const nextMeasure = calculateMeasureStatistics(nextSeries);
+
+    setParsed({
+      ...parsed,
+      measures: {
+        ...parsed.measures,
+        [key]: nextMeasure,
+      },
+    });
+  }
 
   async function selectFile(
     file:
@@ -886,10 +918,7 @@ function ImportarAntropogims() {
                     </h2>
 
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Valores
-                      detectados
-                      automáticamente
-                      en el Excel.
+                      Valores detectados automáticamente en el Excel. Podés corregir o completar cualquier dato antes de guardar.
                     </p>
                   </div>
 
@@ -995,43 +1024,34 @@ function ImportarAntropogims() {
                                 0,
                                 1,
                                 2,
-                              ].map(
-                                (
-                                  index,
-                                ) => (
-                                  <td
-                                    key={
-                                      index
+                              ].map((index) => (
+                                <td key={index} className="px-2 py-2">
+                                  <Input
+                                    inputMode="decimal"
+                                    value={measure?.series[index] ?? ""}
+                                    onChange={(event) =>
+                                      updateImportedMeasure(
+                                        definition.key,
+                                        index,
+                                        event.target.value,
+                                      )
                                     }
-                                    className="numeric px-2 py-2 text-center"
-                                  >
-                                    {measure
-                                      ?.series[
-                                      index
-                                    ] !=
-                                    null
-                                      ? fmt(
-                                          measure
-                                            .series[
-                                            index
-                                          ],
-                                          2,
-                                        )
-                                      : "—"}
-                                  </td>
-                                ),
-                              )}
+                                    placeholder="Completar"
+                                    className={`h-9 text-center ${
+                                      measure?.series[index] == null && definition.usedInKerr
+                                        ? "border-amber-400 bg-amber-50"
+                                        : ""
+                                    }`}
+                                  />
+                                </td>
+                              ))}
 
                               <td className="numeric px-3 py-2 text-right font-semibold">
-                                {measure?.median !=
-                                null
-                                  ? `${fmt(
-                                      measure.median,
-                                      2,
-                                    )} ${
-                                      definition.unit
-                                    }`
-                                  : "—"}
+                                {measure?.median != null
+                                  ? `${fmt(measure.median, 2)} ${definition.unit}`
+                                  : definition.usedInKerr
+                                    ? "Falta dato"
+                                    : "—"}
                               </td>
                             </tr>
                           );
@@ -1066,15 +1086,17 @@ function ImportarAntropogims() {
 
                   <p>
                     Faltan{" "}
+                    <strong>{missing.length}</strong>{" "}
+                    mediciones necesarias para completar el cálculo de Kerr:{" "}
                     <strong>
-                      {
-                        missing.length
-                      }
-                    </strong>{" "}
-                    mediciones
-                    necesarias para
-                    completar el
-                    cálculo de Kerr.
+                      {missing
+                        .map((key) =>
+                          FULL_ANTHROPOMETRY_MEASURES.find(
+                            (definition) => definition.key === key,
+                          )?.label ?? key,
+                        )
+                        .join(", ")}
+                    </strong>. Podés completarlas directamente arriba.
                   </p>
                 </div>
               )}
