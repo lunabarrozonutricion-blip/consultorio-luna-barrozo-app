@@ -314,6 +314,68 @@ function CompositionChart({
   );
 }
 
+type ComparisonTone =
+  | "blue"
+  | "rose"
+  | "amber"
+  | "teal"
+  | "indigo";
+
+type FavorableDirection =
+  | "increase"
+  | "decrease";
+
+const COMPARISON_TONE_CLASSES:
+  Record<
+    ComparisonTone,
+    {
+      card: string;
+      title: string;
+      current: string;
+    }
+  > = {
+    blue: {
+      card:
+        "border-blue-200 bg-blue-50/70",
+      title:
+        "text-blue-950",
+      current:
+        "text-blue-950",
+    },
+    rose: {
+      card:
+        "border-rose-200 bg-rose-50/70",
+      title:
+        "text-rose-950",
+      current:
+        "text-rose-950",
+    },
+    amber: {
+      card:
+        "border-amber-200 bg-amber-50/70",
+      title:
+        "text-amber-950",
+      current:
+        "text-amber-950",
+    },
+    teal: {
+      card:
+        "border-teal-200 bg-teal-50/70",
+      title:
+        "text-teal-950",
+      current:
+        "text-teal-950",
+    },
+    indigo: {
+      card:
+        "border-indigo-200 bg-indigo-50/70",
+      title:
+        "text-indigo-950",
+      current:
+        "text-indigo-950",
+    },
+  };
+
 function ComparisonCard({
   label,
   previous,
@@ -321,6 +383,8 @@ function ComparisonCard({
   change,
   decimals = 2,
   unit = "",
+  tone,
+  favorableDirection,
 }: {
   label: string;
   previous:
@@ -337,10 +401,40 @@ function ComparisonCard({
     | undefined;
   decimals?: number;
   unit?: string;
+  tone: ComparisonTone;
+  favorableDirection:
+    FavorableDirection;
 }) {
+  const toneClasses =
+    COMPARISON_TONE_CLASSES[
+      tone
+    ];
+
+  let changeClass =
+    "text-slate-700";
+
+  if (
+    change != null &&
+    change !== 0
+  ) {
+    const favorable =
+      favorableDirection ===
+      "increase"
+        ? change > 0
+        : change < 0;
+
+    changeClass = favorable
+      ? "text-emerald-700"
+      : "text-rose-700";
+  }
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <p className="text-sm font-semibold text-slate-900">
+    <div
+      className={`rounded-xl border p-4 shadow-sm ${toneClasses.card}`}
+    >
+      <p
+        className={`text-sm font-semibold ${toneClasses.title}`}
+      >
         {label}
       </p>
 
@@ -362,7 +456,9 @@ function ComparisonCard({
           <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
             Actual
           </p>
-          <p className="mt-1 numeric text-base font-bold text-slate-950">
+          <p
+            className={`mt-1 numeric text-base font-bold ${toneClasses.current}`}
+          >
             {numberText(
               current,
               decimals,
@@ -375,7 +471,9 @@ function ComparisonCard({
           <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
             Cambio
           </p>
-          <p className="mt-1 numeric text-base font-bold text-primary">
+          <p
+            className={`mt-1 numeric text-base font-extrabold ${changeClass}`}
+          >
             {signedText(
               change,
               decimals,
@@ -841,6 +939,8 @@ function PresentacionAntropometrica() {
                 )}
                 decimals={3}
                 unit=" kg"
+                tone="blue"
+                favorableDirection="increase"
               />
 
               <ComparisonCard
@@ -865,6 +965,8 @@ function PresentacionAntropometrica() {
                 )}
                 decimals={3}
                 unit=" kg"
+                tone="rose"
+                favorableDirection="decrease"
               />
 
               <ComparisonCard
@@ -885,6 +987,8 @@ function PresentacionAntropometrica() {
                 )}
                 decimals={1}
                 unit=" mm"
+                tone="amber"
+                favorableDirection="decrease"
               />
 
               <ComparisonCard
@@ -904,6 +1008,8 @@ function PresentacionAntropometrica() {
                     .previous,
                 )}
                 decimals={3}
+                tone="teal"
+                favorableDirection="increase"
               />
 
               <ComparisonCard
@@ -927,6 +1033,8 @@ function PresentacionAntropometrica() {
                     .previous,
                 )}
                 decimals={2}
+                tone="indigo"
+                favorableDirection="decrease"
               />
             </div>
           ) : (
