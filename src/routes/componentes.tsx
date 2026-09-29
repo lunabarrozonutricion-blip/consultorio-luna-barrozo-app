@@ -264,6 +264,13 @@ function CincoComponentes() {
           previous,
         );
 
+      const previousPresentation =
+        previous
+          ? calculateAntropogimsPresentation(
+              previous,
+            )
+          : null;
+
       const measurements =
         FULL_ANTHROPOMETRY_MEASURES.map(
           (
@@ -462,7 +469,7 @@ function CincoComponentes() {
         blob,
         fileName,
       } =
-        createFiveComponentsReportPdf({
+        await createFiveComponentsReportPdf({
           playerName:
             player.name,
 
@@ -478,6 +485,32 @@ function CincoComponentes() {
             sourceLabel(
               anthropometry.source,
             ),
+
+          previousDate:
+            previous
+              ? fmtDate(
+                  previous.date,
+                ).replaceAll(
+                  "/",
+                  "-",
+                )
+              : null,
+
+          previousSum6:
+            previousPresentation
+              ?.additional.sum6 ??
+            null,
+
+          previousMuscleBoneIndex:
+            previousPresentation
+              ?.additional
+              .muscleBoneIndex ??
+            null,
+
+          previousZAdipose:
+            previousPresentation
+              ?.massScoreZ.adipose ??
+            null,
 
           weight:
             anthropometry
