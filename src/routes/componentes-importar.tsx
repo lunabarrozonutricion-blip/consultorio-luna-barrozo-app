@@ -458,59 +458,6 @@ function commitImportedMeasure(
   });
 }
 
-  const current =
-    parsed.measures[key];
-
-  const nextSeries = [
-    ...(current?.series ?? [
-      null,
-      null,
-      null,
-      null,
-      null,
-    ]),
-  ] as [
-    number | null,
-    number | null,
-    number | null,
-    number | null,
-    number | null,
-  ];
-
-  if (
-    rawValue.trim() === ""
-  ) {
-    nextSeries[index] =
-      null;
-  } else {
-    const parsedValue =
-      parseNum(rawValue);
-
-    if (
-      parsedValue == null
-    ) {
-      return;
-    }
-
-    nextSeries[index] =
-      parsedValue;
-  }
-
-  const nextMeasure =
-    calculateMeasureStatistics(
-      nextSeries,
-    );
-
-  setParsed({
-    ...parsed,
-    measures: {
-      ...parsed.measures,
-      [key]:
-        nextMeasure,
-    },
-  });
-}
-
    
 
   async function selectFile(
