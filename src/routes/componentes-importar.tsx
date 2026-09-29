@@ -452,17 +452,7 @@ const [
   });
 }
 
-    nextSeries[index] = parseNum(rawValue);
-    const nextMeasure = calculateMeasureStatistics(nextSeries);
-
-    setParsed({
-      ...parsed,
-      measures: {
-        ...parsed.measures,
-        [key]: nextMeasure,
-      },
-    });
-  }
+   
 
   async function selectFile(
     file:
