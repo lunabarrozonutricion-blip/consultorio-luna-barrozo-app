@@ -8,6 +8,7 @@ import {
   FlaskConical,
   Plus,
   Share2,
+  Trash2,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -29,6 +30,10 @@ import {
 import {
   createFiveComponentsReportPdf,
 } from "@/lib/five-components-report-pdf";
+
+import {
+  deleteFullAnthropometry,
+} from "@/lib/db";
 
 import {
   previousFullAnthropometry,
@@ -171,6 +176,13 @@ function CincoComponentes() {
   const [
     sharingId,
     setSharingId,
+  ] = useState<
+    number | null
+  >(null);
+
+  const [
+    deletingId,
+    setDeletingId,
   ] = useState<
     number | null
   >(null);
@@ -533,6 +545,50 @@ function CincoComponentes() {
       setSharingId(
         null,
       );
+    }
+  }
+
+  async function eliminarEvaluacion(
+    anthropometry:
+      FullAnthropometry,
+  ) {
+    if (
+      anthropometry.id == null
+    ) {
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        `¿Eliminar la evaluación del ${fmtDate(
+          anthropometry.date,
+        )}? Esta acción no se puede deshacer.`,
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingId(
+      anthropometry.id,
+    );
+
+    try {
+      await deleteFullAnthropometry(
+        anthropometry.id,
+      );
+
+      toast.success(
+        "Evaluación eliminada correctamente.",
+      );
+    } catch (error) {
+      console.error(error);
+
+      toast.error(
+        "No se pudo eliminar la evaluación.",
+      );
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -964,6 +1020,27 @@ function CincoComponentes() {
                                   <FileText className="h-4 w-4" />
                                   Ver
                                 </Link>
+                              </Button>
+
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                disabled={
+                                  deletingId ===
+                                  anthropometry.id
+                                }
+                                onClick={() =>
+                                  void eliminarEvaluacion(
+                                    anthropometry,
+                                  )
+                                }
+                              >
+                                <Trash2 className="h-4 w-4" />
+
+                                {deletingId ===
+                                anthropometry.id
+                                  ? "Eliminando..."
+                                  : "Eliminar"}
                               </Button>
                             </div>
                           ) : (
