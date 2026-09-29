@@ -7,6 +7,7 @@ import {
   FileText,
   FlaskConical,
   Plus,
+  Pencil,
   Share2,
   Trash2,
 } from "lucide-react";
@@ -728,6 +729,26 @@ function CincoComponentes() {
                 variant="outline"
               >
                 <Link
+                  to="/componentes-editar"
+                  search={{
+                    player:
+                      playerId,
+
+                    id:
+                      latest.id,
+                  }}
+                >
+                  <Pencil className="h-4 w-4" />
+                  Editar
+                </Link>
+              </Button>
+
+              <Button
+                asChild
+                size="sm"
+                variant="outline"
+              >
+                <Link
                   to="/componentes-presentacion"
                   search={{
                     player:
@@ -1000,6 +1021,26 @@ function CincoComponentes() {
                                 anthropometry.id
                                   ? "Preparando..."
                                   : "Compartir"}
+                              </Button>
+
+                              <Button
+                                asChild
+                                size="sm"
+                                variant="outline"
+                              >
+                                <Link
+                                  to="/componentes-editar"
+                                  search={{
+                                    player:
+                                      playerId,
+
+                                    id:
+                                      anthropometry.id,
+                                  }}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                  Editar
+                                </Link>
                               </Button>
 
                               <Button
